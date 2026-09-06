@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $ComposeFile = Join-Path $Root "docker-compose.dev.yml"
 $SetupScript = Join-Path $Root "setup-dev.ps1"
+$LocalAdminScript = Join-Path $Root "local-admin.js"
 $BackendDir = Join-Path $Root "ecommerce-backend"
 $FrontendDir = Join-Path $Root "e-commerce"
 $AdminDir = Join-Path $Root "e-commerce-admin"
@@ -116,6 +117,16 @@ if ($LASTEXITCODE -ne 0) {
     Fail "Docker services failed to start."
 }
 
+if (-not (Test-Path -LiteralPath $LocalAdminScript -PathType Leaf)) {
+    Fail "local-admin.js not found in repository root. Run git pull and try again."
+}
+
+Write-Step "Preparing local admin account"
+& node $LocalAdminScript
+if ($LASTEXITCODE -ne 0) {
+    Fail "Local admin account could not be prepared."
+}
+
 Write-Step "Starting PRIME applications"
 
 # Force safe local values in child processes as well. This overrides any
@@ -190,6 +201,10 @@ Write-Host "PRIME local environment is running:" -ForegroundColor Green
 Write-Host "  Site:    http://localhost:3000"
 Write-Host "  Admin:   http://localhost:3001"
 Write-Host "  Swagger: $BackendUrl/docs"
+Write-Host ""
+Write-Host "Local admin:" -ForegroundColor Green
+Write-Host "  Email:    admin.local@prime.test"
+Write-Host "  Password: PrimeLocal!2026"
 Write-Host ""
 Write-Host "The frontend and admin are pinned to the LOCAL API, not production." -ForegroundColor DarkGray
 
