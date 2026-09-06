@@ -1,6 +1,6 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
+import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
@@ -8,7 +8,33 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
-import { useCallback, useRef, useEffect } from "react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Code2,
+  Eye,
+  ImagePlus,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  Maximize2,
+  Minimize2,
+  Quote,
+  Redo2,
+  Strikethrough,
+  Underline as UnderlineIcon,
+  Undo2,
+} from "lucide-react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { uploadImage } from "../api/upload";
 import { toast } from "sonner";
 
@@ -19,12 +45,79 @@ interface RichTextEditorProps {
   className?: string;
 }
 
+interface ToolbarButtonProps {
+  title: string;
+  onClick: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  children: ReactNode;
+  className?: string;
+}
+
+function ToolbarButton({
+  title,
+  onClick,
+  active = false,
+  disabled = false,
+  children,
+  className = "",
+}: ToolbarButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`h-9 min-w-9 px-2 inline-flex items-center justify-center rounded-md transition-colors hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed ${
+        active ? "bg-white text-primary-orange shadow-sm" : "text-primary-black"
+      } ${className}`}
+      title={title}
+      aria-label={title}
+    >
+      {children}
+    </button>
+  );
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function highlightHtml(value: string) {
+  return value
+    .split(/(<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|<[^>]+>)/gi)
+    .map((token) => {
+      if (!token) return "";
+      if (token.startsWith("<!--")) {
+        return `<span class="text-emerald-700">${escapeHtml(token)}</span>`;
+      }
+      if (/^<!doctype/i.test(token)) {
+        return `<span class="text-violet-700">${escapeHtml(token)}</span>`;
+      }
+      if (token.startsWith("<")) {
+        return `<span class="text-blue-700">${escapeHtml(token)}</span>`;
+      }
+      return `<span class="text-slate-800">${escapeHtml(token)}</span>`;
+    })
+    .join("");
+}
+
 export function RichTextEditor({
   content,
   onChange,
   placeholder = "Начните писать...",
   className = "",
 }: RichTextEditorProps) {
+  const [isHtmlMode, setIsHtmlMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [htmlSource, setHtmlSource] = useState(content);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const sourcePreRef = useRef<HTMLPreElement>(null);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -60,23 +153,47 @@ export function RichTextEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      if (isHtmlMode) return;
+      const html = editor.getHTML();
+      setHtmlSource(html);
+      onChange(html);
     },
   });
 
-  // Update editor content when content prop changes
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+    if (isHtmlMode) {
+      if (content !== htmlSource) setHtmlSource(content);
+      return;
     }
-  }, [editor, content]);
+
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content, { emitUpdate: false });
+      setHtmlSource(content);
+    }
+  }, [editor, content, htmlSource, isHtmlMode]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFullscreen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullscreen]);
 
   const setLink = useCallback(() => {
     if (!editor) return;
 
     const previousUrl = editor.getAttributes("link").href;
     const url = window.prompt("Введите URL:", previousUrl);
-
     if (url === null) return;
 
     if (url === "") {
@@ -86,8 +203,6 @@ export function RichTextEditor({
 
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   }, [editor]);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = useCallback(
     async (file: File) => {
@@ -111,471 +226,247 @@ export function RichTextEditor({
     fileInputRef.current?.click();
   }, [editor]);
 
-  if (!editor) {
-    return null;
-  }
+  const toggleHtmlMode = useCallback(() => {
+    if (!editor) return;
+
+    if (isHtmlMode) {
+      editor.commands.setContent(htmlSource, { emitUpdate: false });
+      setIsHtmlMode(false);
+      return;
+    }
+
+    const html = editor.getHTML();
+    setHtmlSource(html);
+    onChange(html);
+    setIsHtmlMode(true);
+  }, [editor, htmlSource, isHtmlMode, onChange]);
+
+  const handleSourceChange = (value: string) => {
+    setHtmlSource(value);
+    onChange(value);
+  };
+
+  const syncSourceScroll = (target: HTMLTextAreaElement) => {
+    if (!sourcePreRef.current) return;
+    sourcePreRef.current.scrollTop = target.scrollTop;
+    sourcePreRef.current.scrollLeft = target.scrollLeft;
+  };
+
+  if (!editor) return null;
+
+  const shellClassName = isFullscreen
+    ? "fixed inset-0 z-[100] bg-white flex flex-col"
+    : `border border-border-gray rounded-lg overflow-hidden ${className}`;
 
   return (
-    <div
-      className={`border border-border-gray rounded-lg overflow-hidden ${className}`}
-    >
-      {/* Toolbar */}
-      <div className="bg-secondary-gray border-b border-border-gray p-2 flex flex-wrap gap-1">
-        {/* Text Formatting */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("bold") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Жирный (Ctrl+B)"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+    <div className={shellClassName}>
+      <div className="bg-secondary-gray border-b border-border-gray p-2 flex flex-wrap items-center gap-1 shrink-0">
+        {!isHtmlMode && (
+          <>
+            <ToolbarButton
+              title="Жирный (Ctrl+B)"
+              active={editor.isActive("bold")}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+            >
+              <Bold className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton
+              title="Курсив (Ctrl+I)"
+              active={editor.isActive("italic")}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+            >
+              <Italic className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton
+              title="Подчеркнутый (Ctrl+U)"
+              active={editor.isActive("underline")}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+            >
+              <UnderlineIcon className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton
+              title="Зачеркнутый"
+              active={editor.isActive("strike")}
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+            >
+              <Strikethrough className="w-5 h-5" />
+            </ToolbarButton>
+
+            <div className="w-px h-8 bg-border-gray mx-1" />
+
+            {([1, 2, 3] as const).map((level) => (
+              <ToolbarButton
+                key={level}
+                title={`Заголовок ${level}`}
+                active={editor.isActive("heading", { level })}
+                className="font-semibold"
+                onClick={() =>
+                  editor.chain().focus().toggleHeading({ level }).run()
+                }
+              >
+                H{level}
+              </ToolbarButton>
+            ))}
+
+            <div className="w-px h-8 bg-border-gray mx-1" />
+
+            <ToolbarButton
+              title="Маркированный список"
+              active={editor.isActive("bulletList")}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+            >
+              <List className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton
+              title="Нумерованный список"
+              active={editor.isActive("orderedList")}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            >
+              <ListOrdered className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton
+              title="Цитата"
+              active={editor.isActive("blockquote")}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            >
+              <Quote className="w-5 h-5" />
+            </ToolbarButton>
+
+            <div className="w-px h-8 bg-border-gray mx-1" />
+
+            <ToolbarButton
+              title="Выровнять влево"
+              active={editor.isActive({ textAlign: "left" })}
+              onClick={() => editor.chain().focus().setTextAlign("left").run()}
+            >
+              <AlignLeft className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton
+              title="Выровнять по центру"
+              active={editor.isActive({ textAlign: "center" })}
+              onClick={() => editor.chain().focus().setTextAlign("center").run()}
+            >
+              <AlignCenter className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton
+              title="Выровнять вправо"
+              active={editor.isActive({ textAlign: "right" })}
+              onClick={() => editor.chain().focus().setTextAlign("right").run()}
+            >
+              <AlignRight className="w-5 h-5" />
+            </ToolbarButton>
+
+            <div className="w-px h-8 bg-border-gray mx-1" />
+
+            <ToolbarButton
+              title="Добавить ссылку"
+              active={editor.isActive("link")}
+              onClick={setLink}
+            >
+              <Link2 className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton title="Добавить изображение" onClick={addImage}>
+              <ImagePlus className="w-5 h-5" />
+            </ToolbarButton>
+
+            <div className="w-px h-8 bg-border-gray mx-1" />
+
+            <ToolbarButton
+              title="Отменить (Ctrl+Z)"
+              disabled={!editor.can().undo()}
+              onClick={() => editor.chain().focus().undo().run()}
+            >
+              <Undo2 className="w-5 h-5" />
+            </ToolbarButton>
+            <ToolbarButton
+              title="Повторить (Ctrl+Shift+Z)"
+              disabled={!editor.can().redo()}
+              onClick={() => editor.chain().focus().redo().run()}
+            >
+              <Redo2 className="w-5 h-5" />
+            </ToolbarButton>
+          </>
+        )}
+
+        {isHtmlMode && (
+          <div className="px-2 text-sm font-medium text-slate-600">
+            HTML-код статьи
+          </div>
+        )}
+
+        <div className="ml-auto flex items-center gap-1">
+          <ToolbarButton
+            title={isHtmlMode ? "Вернуться в визуальный редактор" : "Редактировать HTML"}
+            active={isHtmlMode}
+            onClick={toggleHtmlMode}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6z M6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("italic") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Курсив (Ctrl+I)"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+            {isHtmlMode ? (
+              <Eye className="w-5 h-5" />
+            ) : (
+              <Code2 className="w-5 h-5" />
+            )}
+          </ToolbarButton>
+          <ToolbarButton
+            title={isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"}
+            active={isFullscreen}
+            onClick={() => setIsFullscreen((value) => !value)}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 4h6M8 20h6M14 4l-4 16"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("underline") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Подчеркнутый (Ctrl+U)"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M7 4v7a5 5 0 0010 0V4M5 20h14"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("strike") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Зачеркнутый"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 12h18M9 5h6a3 3 0 013 3M9 19h6a3 3 0 01-3-3"
-            />
-          </svg>
-        </button>
-
-        <div className="w-px h-8 bg-border-gray mx-1" />
-
-        {/* Headings */}
-        <button
-          type="button"
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 1 }).run()
-          }
-          className={`px-3 py-2 rounded hover:bg-white transition-colors font-bold ${
-            editor.isActive("heading", { level: 1 })
-              ? "bg-white text-primary-orange"
-              : ""
-          }`}
-          title="Заголовок 1"
-        >
-          H1
-        </button>
-
-        <button
-          type="button"
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-          className={`px-3 py-2 rounded hover:bg-white transition-colors font-bold ${
-            editor.isActive("heading", { level: 2 })
-              ? "bg-white text-primary-orange"
-              : ""
-          }`}
-          title="Заголовок 2"
-        >
-          H2
-        </button>
-
-        <button
-          type="button"
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 3 }).run()
-          }
-          className={`px-3 py-2 rounded hover:bg-white transition-colors font-bold ${
-            editor.isActive("heading", { level: 3 })
-              ? "bg-white text-primary-orange"
-              : ""
-          }`}
-          title="Заголовок 3"
-        >
-          H3
-        </button>
-
-        <div className="w-px h-8 bg-border-gray mx-1" />
-
-        {/* Lists */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("bulletList") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Маркированный список"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M4 12h16M4 18h16"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("orderedList") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Нумерованный список"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 4h18M3 12h18M3 20h18"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("blockquote") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Цитата"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 10h.01M12 10h.01M16 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </button>
-
-        <div className="w-px h-8 bg-border-gray mx-1" />
-
-        {/* Alignment */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("left").run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive({ textAlign: "left" })
-              ? "bg-white text-primary-orange"
-              : ""
-          }`}
-          title="Выровнять влево"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M4 12h10M4 18h14"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("center").run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive({ textAlign: "center" })
-              ? "bg-white text-primary-orange"
-              : ""
-          }`}
-          title="Выровнять по центру"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M7 12h10M5 18h14"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().setTextAlign("right").run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive({ textAlign: "right" })
-              ? "bg-white text-primary-orange"
-              : ""
-          }`}
-          title="Выровнять вправо"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 6h16M10 12h10M6 18h14"
-            />
-          </svg>
-        </button>
-
-        <div className="w-px h-8 bg-border-gray mx-1" />
-
-        {/* Link and Image */}
-        <button
-          type="button"
-          onClick={setLink}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("link") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Добавить ссылку"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={addImage}
-          className="p-2 rounded hover:bg-white transition-colors"
-          title="Добавить изображение"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </button>
-
-        <div className="w-px h-8 bg-border-gray mx-1" />
-
-        {/* Code */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("code") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Код"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          className={`p-2 rounded hover:bg-white transition-colors ${
-            editor.isActive("codeBlock") ? "bg-white text-primary-orange" : ""
-          }`}
-          title="Блок кода"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        </button>
-
-        <div className="w-px h-8 bg-border-gray mx-1" />
-
-        {/* Undo/Redo */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
-          className="p-2 rounded hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Отменить (Ctrl+Z)"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-            />
-          </svg>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
-          className="p-2 rounded hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Повторить (Ctrl+Shift+Z)"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"
-            />
-          </svg>
-        </button>
+            {isFullscreen ? (
+              <Minimize2 className="w-5 h-5" />
+            ) : (
+              <Maximize2 className="w-5 h-5" />
+            )}
+          </ToolbarButton>
+        </div>
       </div>
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            handleImageUpload(file);
-          }
-          // Reset input so the same file can be selected again
-          e.target.value = "";
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) handleImageUpload(file);
+          event.target.value = "";
         }}
       />
 
-      {/* Editor */}
-      <div className="bg-white">
-        <EditorContent editor={editor} />
-      </div>
+      {isHtmlMode ? (
+        <div className={`relative bg-white ${isFullscreen ? "flex-1 min-h-0" : "min-h-[360px]"}`}>
+          <pre
+            ref={sourcePreRef}
+            aria-hidden="true"
+            className={`absolute inset-0 m-0 overflow-auto whitespace-pre p-4 font-mono text-sm leading-6 pointer-events-none bg-white ${
+              isFullscreen ? "h-full" : "h-[420px]"
+            }`}
+            dangerouslySetInnerHTML={{
+              __html: `${highlightHtml(htmlSource)}\n`,
+            }}
+          />
+          <textarea
+            value={htmlSource}
+            onChange={(event) => handleSourceChange(event.target.value)}
+            onScroll={(event) => syncSourceScroll(event.currentTarget)}
+            placeholder={placeholder}
+            spellCheck={false}
+            wrap="off"
+            className={`relative z-10 block w-full resize-none overflow-auto bg-transparent p-4 font-mono text-sm leading-6 text-transparent caret-slate-900 outline-none selection:bg-blue-200/70 ${
+              isFullscreen ? "h-full" : "h-[420px]"
+            }`}
+          />
+        </div>
+      ) : (
+        <div className={`bg-white overflow-auto ${isFullscreen ? "flex-1 min-h-0" : ""}`}>
+          <EditorContent editor={editor} />
+        </div>
+      )}
+
+      {isFullscreen && (
+        <div className="shrink-0 border-t border-border-gray bg-white px-4 py-2 text-xs text-slate-500">
+          Esc — выйти из полноэкранного режима
+        </div>
+      )}
     </div>
   );
 }
