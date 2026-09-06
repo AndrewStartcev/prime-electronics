@@ -12,6 +12,8 @@ $DevDataDir = Join-Path $Root "dev-data"
 $BackendDir = Join-Path $Root "ecommerce-backend"
 $FrontendDir = Join-Path $Root "e-commerce"
 $AdminDir = Join-Path $Root "e-commerce-admin"
+$BackendPort = 16001
+$ApiUrl = "http://localhost:$BackendPort/api"
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -40,9 +42,6 @@ function Invoke-Native([string]$File, [string[]]$Arguments) {
 function Test-NativeQuiet([string]$File, [string[]]$Arguments) {
     $oldPreference = $ErrorActionPreference
     try {
-        # Windows PowerShell 5 turns stderr from native programs into
-        # ErrorRecord objects when ErrorActionPreference=Stop. For probe
-        # commands a non-zero exit code is expected and must not abort setup.
         $ErrorActionPreference = "Continue"
         & $File @Arguments 1>$null 2>$null
         return ($LASTEXITCODE -eq 0)
@@ -161,9 +160,9 @@ and run dev.cmd again.
 }
 
 function Write-LocalEnvs {
-    $backendEnv = @'
+    $backendEnv = @"
 NODE_ENV=development
-PORT=6001
+PORT=$BackendPort
 DATABASE_URL=postgresql://prime:prime_local@127.0.0.1:55432/prime_local?schema=public
 FRONTEND_URL=http://localhost:3000
 CORS_ORIGINS=http://localhost:3000,http://localhost:3001
@@ -196,19 +195,14 @@ AMOCRM_RESPONSIBLE_USER_ID=
 AMOCRM_PIPELINE_ID=
 AMOCRM_STATUS_ID=
 AMOCRM_CANCELLED_STATUS_ID=
-'@
+"@
 
-    $frontendEnv = @'
-NEXT_PUBLIC_API_URL=http://localhost:6001/api
-'@
-
-    $adminEnv = @'
-NEXT_PUBLIC_API_URL=http://localhost:6001/api
-'@
+    $frontendEnv = "NEXT_PUBLIC_API_URL=$ApiUrl`r`n"
+    $adminEnv = "NEXT_PUBLIC_API_URL=$ApiUrl`r`n"
 
     Write-Utf8NoBom (Join-Path $BackendDir ".env") ($backendEnv.Trim() + [Environment]::NewLine)
-    Write-Utf8NoBom (Join-Path $FrontendDir ".env.local") ($frontendEnv.Trim() + [Environment]::NewLine)
-    Write-Utf8NoBom (Join-Path $AdminDir ".env.local") ($adminEnv.Trim() + [Environment]::NewLine)
+    Write-Utf8NoBom (Join-Path $FrontendDir ".env.local") $frontendEnv
+    Write-Utf8NoBom (Join-Path $AdminDir ".env.local") $adminEnv
 
     Write-Host "Local .env files created. External write integrations are disabled." -ForegroundColor Green
 }
