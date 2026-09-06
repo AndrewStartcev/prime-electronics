@@ -37,6 +37,20 @@ function Invoke-Native([string]$File, [string[]]$Arguments) {
     }
 }
 
+function Test-NativeQuiet([string]$File, [string[]]$Arguments) {
+    $oldPreference = $ErrorActionPreference
+    try {
+        # Windows PowerShell 5 turns stderr from native programs into
+        # ErrorRecord objects when ErrorActionPreference=Stop. For probe
+        # commands a non-zero exit code is expected and must not abort setup.
+        $ErrorActionPreference = "Continue"
+        & $File @Arguments 1>$null 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } finally {
+        $ErrorActionPreference = $oldPreference
+    }
+}
+
 function Write-Utf8NoBom([string]$Path, [string]$Content) {
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($Path, $Content, $utf8)
@@ -63,8 +77,7 @@ function Test-NodeVersion {
 }
 
 function Test-DockerVolume([string]$Name) {
-    & docker volume inspect $Name *> $null
-    return ($LASTEXITCODE -eq 0)
+    return (Test-NativeQuiet "docker" @("volume", "inspect", $Name))
 }
 
 function Find-DatabaseDump {
@@ -127,8 +140,8 @@ and run dev.cmd again.
 "@
     }
 
-    $dumpParent = [System.IO.Path]::GetFullPath((Split-Path -Parent $dump)).TrimEnd('\')
-    $devDataFull = [System.IO.Path]::GetFullPath($DevDataDir).TrimEnd('\')
+    $dumpParent = [System.IO.Path]::GetFullPath((Split-Path -Parent $dump)).TrimEnd([char]'\')
+    $devDataFull = [System.IO.Path]::GetFullPath($DevDataDir).TrimEnd([char]'\')
 
     if (-not $dumpParent.Equals($devDataFull, [System.StringComparison]::OrdinalIgnoreCase)) {
         $extension = if ($dump.EndsWith(".sql.gz", [System.StringComparison]::OrdinalIgnoreCase)) { ".sql.gz" } else { ".sql" }
@@ -203,8 +216,7 @@ NEXT_PUBLIC_API_URL=http://localhost:6001/api
 function Wait-ForPostgres {
     Write-Host "Waiting for PostgreSQL (first dump import may take a little longer)..." -ForegroundColor DarkGray
     for ($i = 0; $i -lt 120; $i++) {
-        & docker exec prime-local-postgres pg_isready -U prime -d prime_local *> $null
-        if ($LASTEXITCODE -eq 0) {
+        if (Test-NativeQuiet "docker" @("exec", "prime-local-postgres", "pg_isready", "-U", "prime", "-d", "prime_local")) {
             Write-Host "PostgreSQL is ready." -ForegroundColor Green
             return
         }
@@ -216,8 +228,15 @@ function Wait-ForPostgres {
 function Wait-ForRedis {
     Write-Host "Waiting for Redis..." -ForegroundColor DarkGray
     for ($i = 0; $i -lt 30; $i++) {
-        $result = & docker exec prime-local-redis redis-cli -a prime_local_redis ping 2>$null
-        if ($LASTEXITCODE -eq 0 -and ($result -join "").Trim() -eq "PONG") {
+        $oldPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            $result = & docker exec prime-local-redis redis-cli -a prime_local_redis ping 2>$null
+            $ok = ($LASTEXITCODE -eq 0 -and ($result -join "").Trim() -eq "PONG")
+        } finally {
+            $ErrorActionPreference = $oldPreference
+        }
+        if ($ok) {
             Write-Host "Redis is ready." -ForegroundColor Green
             return
         }
@@ -259,8 +278,7 @@ Require-Command "node" "Install Node.js 22 LTS."
 Require-Command "npm" "npm must be available together with Node.js."
 Test-NodeVersion
 
-& docker info *> $null
-if ($LASTEXITCODE -ne 0) {
+if (-not (Test-NativeQuiet "docker" @("info"))) {
     Fail "Docker Desktop is installed but Docker Engine is not running. Start Docker Desktop and run dev.cmd again."
 }
 Write-Host "Docker Engine: ready" -ForegroundColor Green
