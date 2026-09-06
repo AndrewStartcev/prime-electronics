@@ -21,7 +21,15 @@ export const ProductGallery = memo(({ product }: ProductGalleryProps) => {
   const { images, title, discount } = product;
   const thumbnailStripRef = useRef<HTMLDivElement>(null);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const { selectedIndex, selectImage } = useImageGallery({
+  const {
+    selectedIndex,
+    isZoomed,
+    zoomPosition,
+    selectImage,
+    handleMouseMove,
+    handleMouseEnter,
+    handleMouseLeave,
+  } = useImageGallery({
     totalImages: images.length,
   });
 
@@ -173,7 +181,12 @@ export const ProductGallery = memo(({ product }: ProductGalleryProps) => {
           )}
         </div>
 
-        <div className="relative flex-1 order-1 lg:order-2">
+        <div
+          className="relative flex-1 order-1 lg:order-2"
+          onMouseMove={handleMouseMove}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           <button
             type="button"
             onClick={() => setIsLightboxOpen(true)}
@@ -197,6 +210,18 @@ export const ProductGallery = memo(({ product }: ProductGalleryProps) => {
               </div>
             )}
           </button>
+
+          {isZoomed && !isLightboxOpen && (
+            <div
+              className="hidden xl:block absolute top-0 left-[calc(100%+20px)] w-[280px] h-[280px] 2xl:w-[320px] 2xl:h-[320px] rounded-[14px] border-2 border-[#f5f5f7] bg-[#f5f5f7] overflow-hidden z-10 pointer-events-none"
+              style={{
+                backgroundImage: `url(${images[selectedIndex]})`,
+                backgroundSize: "300%",
+                backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+              }}
+              aria-hidden="true"
+            />
+          )}
         </div>
       </div>
 
