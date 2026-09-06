@@ -6,3 +6,6 @@
 !/dev-data/.gitkeep
 /*.sql
 /*.sql.gz
+
+# Generated client delivery packages
+/.client-delivery/
