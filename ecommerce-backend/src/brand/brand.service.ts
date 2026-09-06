@@ -1,0 +1,398 @@
+import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { PrismaService } from '../shared/services/prisma.service';
+import { CreateBrandDto, UpdateBrandDto } from './dto';
+import { PaginationDto } from '../shared/dto/pagination.dto';
+import { BrandCacheService } from './services/cache.service';
+
+@Injectable()
+export class BrandService {
+  private readonly logger = new Logger(BrandService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: BrandCacheService,
+  ) {}
+
+  private generateSlug(name: string): string {
+    const translitMap: Record<string, string> = {
+      а: 'a',
+      б: 'b',
+      в: 'v',
+      г: 'g',
+      д: 'd',
+      е: 'e',
+      ё: 'yo',
+      ж: 'zh',
+      з: 'z',
+      и: 'i',
+      й: 'y',
+      к: 'k',
+      л: 'l',
+      м: 'm',
+      н: 'n',
+      о: 'o',
+      п: 'p',
+      р: 'r',
+      с: 's',
+      т: 't',
+      у: 'u',
+      ф: 'f',
+      х: 'kh',
+      ц: 'ts',
+      ч: 'ch',
+      ш: 'sh',
+      щ: 'shch',
+      ъ: '',
+      ы: 'y',
+      ь: '',
+      э: 'e',
+      ю: 'yu',
+      я: 'ya',
+    };
+    return name
+      .toLowerCase()
+      .split('')
+      .map((ch) => translitMap[ch] ?? ch)
+      .join('')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim();
+  }
+
+  async create(dto: CreateBrandDto) {
+    try {
+      this.logger.log(`Creating brand: ${dto.name}`);
+
+      const slug = this.generateSlug(dto.name);
+
+      const existing = await this.prisma.brand.findFirst({
+        where: { OR: [{ name: dto.name }, { slug }] },
+      });
+
+      if (existing) {
+        throw new HttpException(
+          'Brand with this name already exists',
+          HttpStatus.CONFLICT,
+        );
+      }
+
+      const brand = await this.prisma.brand.create({
+        data: {
+          name: dto.name,
+          slug,
+          logo: dto.logo,
+          isActive: dto.isActive ?? true,
+        },
+      });
+
+      await this.cacheService.invalidateAllCaches();
+      this.logger.log(`Created brand ${brand.id}, cache invalidated`);
+
+      return brand;
+    } catch (error) {
+      this.logger.error(`Error creating brand: ${error.message}`, error.stack);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to create brand',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async findAll(pagination: PaginationDto) {
+    try {
+      this.logger.log(
+        `Finding all brands with pagination: ${JSON.stringify(pagination)}`,
+      );
+
+      const { page = 1, limit = 20 } = pagination;
+      const skip = (page - 1) * limit;
+
+      const cacheKey = `brand:all:page:${page}:limit:${limit}`;
+
+      const cached = await this.cacheService.getCachedBrands(cacheKey);
+      if (cached) {
+        this.logger.log(`Cache hit for ${cacheKey}`);
+        return cached;
+      }
+
+      const [data, total] = await Promise.all([
+        this.prisma.brand.findMany({
+          where: { isDeleted: false },
+          skip,
+          take: limit,
+          orderBy: { name: 'asc' },
+          include: { _count: { select: { products: true } } },
+        }),
+        this.prisma.brand.count({ where: { isDeleted: false } }),
+      ]);
+
+      const result = {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+
+      await this.cacheService.cacheBrands(cacheKey, result);
+      this.logger.log(`Cached result for ${cacheKey}`);
+
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Error finding all brands: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to find brands',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async findActive() {
+    try {
+      this.logger.log('Finding active brands');
+
+      const cacheKey = 'brand:active';
+
+      const cached = await this.cacheService.getCachedBrands(cacheKey);
+      if (cached) {
+        this.logger.log(`Cache hit for ${cacheKey}`);
+        return cached;
+      }
+
+      const brands = await this.prisma.brand.findMany({
+        where: { isActive: true, isDeleted: false },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, slug: true, logo: true },
+      });
+
+      await this.cacheService.cacheBrands(cacheKey, brands);
+      this.logger.log(`Cached result for ${cacheKey}`);
+
+      return brands;
+    } catch (error) {
+      this.logger.error(
+        `Error finding active brands: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to find active brands',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async findOne(id: string) {
+    try {
+      this.logger.log(`Finding brand: ${id}`);
+
+      const cached = await this.cacheService.getCachedBrand(id);
+      if (cached) {
+        this.logger.log(`Cache hit for brand ${id}`);
+        return cached;
+      }
+
+      const brand = await this.prisma.brand.findUnique({
+        where: { id },
+        include: { _count: { select: { products: true } } },
+      });
+
+      if (!brand || brand.isDeleted) {
+        throw new HttpException(
+          `Brand with ID ${id} not found`,
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      await this.cacheService.cacheBrand(id, brand);
+      return brand;
+    } catch (error) {
+      this.logger.error(
+        `Error finding brand ${id}: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to find brand',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async update(id: string, dto: UpdateBrandDto) {
+    try {
+      this.logger.log(`Updating brand: ${id}`);
+
+      await this.findOne(id);
+
+      const updateData: any = { ...dto };
+      if (dto.name) {
+        updateData.slug = this.generateSlug(dto.name);
+      }
+
+      const brand = await this.prisma.brand.update({
+        where: { id },
+        data: updateData,
+      });
+
+      await this.cacheService.invalidateBrand(id);
+      this.logger.log(`Updated brand ${id}, cache invalidated`);
+
+      return brand;
+    } catch (error) {
+      this.logger.error(
+        `Error updating brand ${id}: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to update brand',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      this.logger.log(`Soft deleting brand: ${id}`);
+
+      await this.findOne(id);
+
+      await this.prisma.brand.update({
+        where: { id },
+        data: {
+          isDeleted: true,
+          deletedAt: new Date(),
+        },
+      });
+      await this.cacheService.invalidateAllCaches();
+      this.logger.log(`Soft deleted brand ${id}, cache invalidated`);
+
+      return { message: 'Brand deleted successfully' };
+    } catch (error) {
+      this.logger.error(
+        `Error removing brand ${id}: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to remove brand',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async restore(id: string) {
+    try {
+      this.logger.log(`Restoring brand: ${id}`);
+
+      const brand = await this.prisma.brand.findUnique({ where: { id } });
+
+      if (!brand) {
+        throw new HttpException(
+          `Brand with ID ${id} not found`,
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (!brand.isDeleted) {
+        throw new HttpException('Brand is not deleted', HttpStatus.BAD_REQUEST);
+      }
+
+      const daysSinceDeleted =
+        (Date.now() - new Date(brand.deletedAt).getTime()) /
+        (1000 * 60 * 60 * 24);
+
+      if (daysSinceDeleted > 7) {
+        throw new HttpException(
+          'Brand cannot be restored after 7 days',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const restored = await this.prisma.brand.update({
+        where: { id },
+        data: { isDeleted: false, deletedAt: null },
+      });
+
+      await this.cacheService.invalidateAllCaches();
+      this.logger.log(`Restored brand ${id}, cache invalidated`);
+
+      return restored;
+    } catch (error) {
+      this.logger.error(
+        `Error restoring brand ${id}: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to restore brand',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async findDeleted(pagination: PaginationDto) {
+    try {
+      this.logger.log('Finding deleted brands');
+
+      const { page = 1, limit = 20 } = pagination;
+      const skip = (page - 1) * limit;
+
+      const [data, total] = await Promise.all([
+        this.prisma.brand.findMany({
+          where: { isDeleted: true },
+          skip,
+          take: limit,
+          orderBy: { deletedAt: 'desc' },
+          include: { _count: { select: { products: true } } },
+        }),
+        this.prisma.brand.count({ where: { isDeleted: true } }),
+      ]);
+
+      return {
+        data,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error finding deleted brands: ${error.message}`,
+        error.stack,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to find deleted brands',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+}

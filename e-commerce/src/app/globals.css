@@ -1,0 +1,459 @@
+@import "tailwindcss";
+
+@custom-media --3xl (min-width: 1440px);
+
+:root {
+  --background: #ffffff;
+  --foreground: #131314;
+
+  /* Brand Colors */
+  --color-primary-orange: #ef6f2e;
+  --color-primary-black: #131314;
+  --color-primary-white: #ffffff;
+
+  /* Secondary Colors */
+  --color-secondary-gray: #f5f5f7;
+
+  /* Text Colors */
+  --color-text-primary-black: #131314;
+  --color-text-primary-white: #ffffff;
+  --color-text-primary-orange: #ef6f2e;
+  --color-text-secondary-white: rgba(255, 255, 255, 0.4);
+  --color-text-secondary-black: rgba(19, 19, 20, 0.4);
+
+  /* Border Colors */
+  --color-border-primary: #131314;
+  --color-border-secondary-white: rgba(255, 255, 255, 0.4);
+}
+
+@theme inline {
+  /* Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary-orange: #ef6f2e;
+  --color-primary-black: #131314;
+  --color-primary-white: #ffffff;
+  --color-secondary-gray: #f5f5f7;
+
+  /* Typography */
+  --font-inter-tight: var(--font-primary), sans-serif;
+
+  /* Border Radius */
+  --radius-xl: 20px;
+  --radius-2xl: 30px;
+  --radius-3xl: 60px;
+
+  /* Shadows */
+  --shadow-card: 0px 4px 30px 0px rgba(19, 19, 20, 0.1);
+  --shadow-card-hover: 0px 4px 30px 0px rgba(212, 214, 215, 0.6);
+  --shadow-card-sm: 0px 2px 16px 0px rgba(19, 19, 20, 0.06);
+
+  /* Breakpoints */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  --breakpoint-3xl: 1440px;
+
+  /* Screen sizes */
+  --breakpoint-3xl: 1440px;
+
+  /* Animations */
+  --animate-fade-in: fadeIn 0.2s ease-out;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-primary), sans-serif;
+}
+
+button,
+a {
+  cursor: pointer;
+}
+
+/* Product image watermark */
+.product-watermark {
+  position: relative;
+}
+
+.product-watermark::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 56px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(19, 19, 20, 0.48) url("/prime.svg") center / 44px auto
+    no-repeat;
+  box-shadow: 0 1px 6px rgba(19, 19, 20, 0.18);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  pointer-events: none;
+  z-index: 8;
+  opacity: 0.9;
+}
+
+@media (min-width: 1024px) {
+  .product-watermark::after {
+    right: 10px;
+    bottom: 10px;
+    width: 64px;
+    height: 20px;
+    background-size: 50px auto;
+  }
+}
+
+/* Hide all scrollbars globally */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar (class-based, kept for compatibility) */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Tap feedback for mobile interactive elements */
+.tap-feedback {
+  transition: transform 0.15s ease;
+}
+
+.tap-feedback:active {
+  transform: scale(0.98);
+}
+
+/* Remove 300ms tap delay on mobile */
+.touch-action-manipulation {
+  touch-action: manipulation;
+}
+
+/* Container */
+.container {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 1440px) {
+  .container {
+    max-width: 1400px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .container {
+    max-width: 1680px;
+  }
+}
+
+/* Modal Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-fadeOut {
+  animation: fadeOut 0.15s ease-in forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scaleOut {
+  animation: scaleOut 0.15s ease-in forwards;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideOutLeft {
+  animation: slideOutLeft 0.25s ease-out forwards;
+}
+
+@keyframes slideInBottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideOutBottom {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.animate-slideInBottom {
+  animation: slideInBottom 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideOutBottom {
+  animation: slideOutBottom 0.25s ease-in forwards;
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-zoomIn {
+  animation: zoomIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.animate-fadeOut {
+  animation: fadeOut 0.15s ease-out forwards;
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-toast-slide-up {
+  animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Blog Content Styles */
+.blog-content {
+  color: rgba(19, 19, 20, 0.8);
+  line-height: 1.6;
+}
+
+.blog-content h1,
+.blog-content h2,
+.blog-content h3,
+.blog-content h4 {
+  color: #131314;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 2em;
+  margin-bottom: 0.8em;
+}
+
+.blog-content h1 {
+  font-size: 2em;
+}
+
+.blog-content h2 {
+  font-size: 1.5em;
+}
+
+.blog-content h3 {
+  font-size: 1.25em;
+}
+
+.blog-content h4 {
+  font-size: 1.1em;
+}
+
+.blog-content p {
+  margin-bottom: 1.2em;
+  font-size: 1rem;
+}
+
+@media (min-width: 768px) {
+  .blog-content p {
+    font-size: 1.125rem;
+  }
+}
+
+.blog-content ul,
+.blog-content ol {
+  margin: 1em 0;
+  padding-left: 1.5rem;
+}
+
+.blog-content ul {
+  list-style-type: disc;
+}
+
+.blog-content ol {
+  list-style-type: decimal;
+}
+
+.blog-content li {
+  margin-bottom: 0.5em;
+}
+
+.blog-content blockquote {
+  border-left: 4px solid #ef6f2e;
+  padding-left: 1.25rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  margin: 1.5em 0;
+  background-color: #f5f5f7;
+  border-radius: 0 12px 12px 0;
+  font-style: italic;
+  color: rgba(19, 19, 20, 0.7);
+}
+
+.blog-content code {
+  background-color: #f5f5f7;
+  border-radius: 4px;
+  padding: 0.2em 0.4em;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.blog-content pre {
+  background-color: #f5f5f7;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1.5em 0;
+}
+
+.blog-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.blog-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 1.5em 0;
+}
+
+.blog-content a {
+  color: #ef6f2e;
+  text-decoration: underline;
+  transition: opacity 0.2s;
+}
+
+.blog-content a:hover {
+  opacity: 0.8;
+}
+
+.blog-content strong {
+  font-weight: 600;
+  color: #131314;
+}
+
+.blog-content em {
+  font-style: italic;
+}
+
+.blog-content u {
+  text-decoration: underline;
+}
+
+.blog-content s {
+  text-decoration: line-through;
+}

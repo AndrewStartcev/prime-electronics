@@ -1,0 +1,165 @@
+import {
+  Controller,
+  Body,
+  Post,
+  UploadedFile,
+  UploadedFiles,
+  UseInterceptors,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { UploadService } from './upload.service';
+import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
+
+@ApiTags('upload')
+@Controller('upload')
+export class UploadController {
+  constructor(private readonly uploadService: UploadService) {}
+
+  @Post('image')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        withWatermark: {
+          type: 'boolean',
+          description:
+            'Embed PRIME watermark into image during upload (default: false)',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (req, file, callback) => {
+        const allowedTypes = [
+          'image/webp',
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/svg+xml',
+        ];
+        if (allowedTypes.includes(file.mimetype)) {
+          callback(null, true);
+        } else {
+          callback(
+            new HttpException(
+              `Invalid image type. Allowed types: ${allowedTypes.join(', ')}`,
+              400,
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async uploadImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('withWatermark') withWatermark?: string | boolean,
+  ) {
+    if (!file) {
+      throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
+    }
+
+    const withWatermarkEnabled =
+      withWatermark === true || withWatermark === 'true';
+    const ext = file.originalname.substring(file.originalname.lastIndexOf('.'));
+    const filename = `${Math.floor(Math.random() * 100000)}_${Date.now()}${ext}`;
+    const url = await this.uploadService.saveImage(file, filename, {
+      withWatermark: withWatermarkEnabled,
+    });
+
+    return {
+      filename,
+      originalName: file.originalname,
+      size: file.size,
+      mimetype: file.mimetype,
+      url,
+    };
+  }
+
+  @Post('images')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+        withWatermark: {
+          type: 'boolean',
+          description:
+            'Embed PRIME watermark into images during upload (default: false)',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: memoryStorage(),
+      fileFilter: (req, file, callback) => {
+        const allowedTypes = [
+          'image/webp',
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/svg+xml',
+        ];
+        if (allowedTypes.includes(file.mimetype)) {
+          callback(null, true);
+        } else {
+          callback(
+            new HttpException(
+              `Invalid image type. Allowed types: ${allowedTypes.join(', ')}`,
+              HttpStatus.BAD_REQUEST,
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async uploadImages(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('withWatermark') withWatermark?: string | boolean,
+  ) {
+    if (!files || files.length === 0) {
+      throw new HttpException('No files uploaded', HttpStatus.BAD_REQUEST);
+    }
+
+    const withWatermarkEnabled =
+      withWatermark === true || withWatermark === 'true';
+    return Promise.all(
+      files.map(async (file) => {
+        const ext = file.originalname.substring(
+          file.originalname.lastIndexOf('.'),
+        );
+        const filename = `${Math.floor(Math.random() * 100000)}_${Date.now()}${ext}`;
+        const url = await this.uploadService.saveImage(file, filename, {
+          withWatermark: withWatermarkEnabled,
+        });
+
+        return {
+          filename,
+          originalName: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          url,
+        };
+      }),
+    );
+  }
+}

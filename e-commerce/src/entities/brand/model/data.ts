@@ -1,0 +1,65 @@
+import { Brand } from "./types";
+
+export const brandsData: Brand[] = [
+  {
+    brand: "apple",
+    title: "Apple",
+    categories: [
+      "iPhone",
+      "Apple Watch",
+      "AirPods",
+      "iPad",
+      "MacBook",
+      "Mac",
+      "Аксессуары Apple",
+    ],
+    imageUrl: "/images/brands/apple-brand-2026.png",
+    accentColor: "#ef6f2e",
+    link: "/catalog/apple",
+  },
+  {
+    brand: "samsung",
+    title: "Samsung",
+    categories: [
+      "Galaxy S",
+      "Galaxy Z",
+      "Galaxy A",
+      "Galaxy Watch",
+      "Galaxy Buds",
+      "Планшеты Samsung",
+      "Аксессуары Samsung",
+    ],
+    imageUrl: "/images/brands/samsung-category.png",
+    accentColor: "#ef6f2e",
+    link: "/catalog/samsung",
+  },
+  {
+    brand: "xiaomi",
+    title: "Xiaomi",
+    categories: [
+      "Смартфоны Xiaomi",
+      "Redmi",
+      "POCO",
+      "Планшеты Xiaomi",
+      "Наушники Xiaomi",
+      "Умный дом Xiaomi",
+      "Аксессуары Xiaomi",
+    ],
+    imageUrl: "/images/brands/xiaomi.svg",
+    accentColor: "#ef6f2e",
+    link: "/catalog/xiaomi",
+  },
+  {
+    brand: "dyson",
+    title: "Dyson",
+    categories: [
+      "Пылесосы Dyson",
+      "Стайлеры Dyson",
+      "Фены Dyson",
+      "Аксессуары Dyson",
+    ],
+    imageUrl: "/images/brands/dyson-brand-2026.png",
+    accentColor: "#ef6f2e",
+    link: "/catalog/dyson",
+  },
+];

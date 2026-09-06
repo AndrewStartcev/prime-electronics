@@ -1,0 +1,6 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="640" rx="120" fill="#F5F5F7"/>
+  <circle cx="320" cy="252" r="124" fill="#FC3F1D"/>
+  <path d="M320 160C285.2 160 257 188.2 257 223V344H302V281H338L377 344H430L382 266C407.7 252.9 424 226.8 424 197.5C424 176.3 415.6 156 400.7 141.1C385.8 126.2 365.5 117.8 344.3 117.8H320V160ZM302 240V160H334.5C356.3 160 374 177.7 374 199.5C374 221.3 356.3 239 334.5 239H302V240Z" fill="white"/>
+  <text x="320" y="460" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="62" font-weight="700" fill="#131314">Яндекс Алиса</text>
+</svg>

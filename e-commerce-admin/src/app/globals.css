@@ -1,0 +1,165 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&display=swap");
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #131314;
+
+  /* Brand Colors */
+  --color-primary-orange: #ef6f2e;
+  --color-primary-black: #131314;
+  --color-primary-white: #ffffff;
+
+  /* Secondary Colors */
+  --color-secondary-gray: #f5f5f7;
+
+  /* Text Colors */
+  --color-text-primary-black: #131314;
+  --color-text-primary-white: #ffffff;
+  --color-text-primary-orange: #ef6f2e;
+  --color-text-secondary-white: rgba(255, 255, 255, 0.4);
+  --color-text-secondary-black: rgba(19, 19, 20, 0.4);
+
+  /* Border Colors */
+  --color-border-primary: #131314;
+  --color-border-secondary-white: rgba(255, 255, 255, 0.4);
+}
+
+@theme inline {
+  /* Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary-orange: #ef6f2e;
+  --color-primary-black: #131314;
+  --color-primary-white: #ffffff;
+  --color-secondary-gray: #f5f5f7;
+  --color-text-secondary-black: rgba(19, 19, 20, 0.4);
+
+  /* Typography */
+  --font-inter-tight: "Inter Tight", sans-serif;
+
+  /* Border Radius */
+  --radius-xl: 20px;
+  --radius-2xl: 30px;
+  --radius-3xl: 60px;
+
+  /* Shadows */
+  --shadow-card: 0px 4px 30px 0px rgba(19, 19, 20, 0.1);
+  --shadow-card-hover: 0px 4px 30px 0px rgba(212, 214, 215, 0.6);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Inter Tight", sans-serif;
+}
+
+button,
+a {
+  cursor: pointer;
+}
+
+/* Hide scrollbar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: rgba(19, 19, 20, 0.4);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: 600;
+  margin-top: 0.67em;
+  margin-bottom: 0.67em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 0.83em;
+  margin-bottom: 0.83em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.17em;
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.ProseMirror h4 {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 1.33em;
+  margin-bottom: 1.33em;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 1em 0;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #ef6f2e;
+  padding-left: 1rem;
+  margin: 1em 0;
+  color: rgba(19, 19, 20, 0.7);
+}
+
+.ProseMirror code {
+  background-color: #f5f5f7;
+  border-radius: 4px;
+  padding: 0.2em 0.4em;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror pre {
+  background-color: #f5f5f7;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.ProseMirror a {
+  color: #ef6f2e;
+  text-decoration: underline;
+}
