@@ -10,6 +10,9 @@ $SetupScript = Join-Path $Root "setup-dev.ps1"
 $BackendDir = Join-Path $Root "ecommerce-backend"
 $FrontendDir = Join-Path $Root "e-commerce"
 $AdminDir = Join-Path $Root "e-commerce-admin"
+$BackendPort = 16001
+$BackendUrl = "http://localhost:$BackendPort"
+$ApiUrl = "$BackendUrl/api"
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -95,8 +98,15 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Fail "Docker not found. Install/start Docker Desktop."
 }
 
-& docker info *> $null
-if ($LASTEXITCODE -ne 0) {
+$oldPreference = $ErrorActionPreference
+try {
+    $ErrorActionPreference = "Continue"
+    & docker info 1>$null 2>$null
+    $dockerReady = ($LASTEXITCODE -eq 0)
+} finally {
+    $ErrorActionPreference = $oldPreference
+}
+if (-not $dockerReady) {
     Fail "Docker Engine is not running. Start Docker Desktop and run dev.cmd again."
 }
 
@@ -113,7 +123,7 @@ Write-Step "Starting PRIME applications"
 $backendCommand = @(
     "title PRIME BACKEND",
     'set "NODE_ENV=development"',
-    'set "PORT=6001"',
+    "set \"PORT=$BackendPort\"",
     'set "DATABASE_URL=postgresql://prime:prime_local@127.0.0.1:55432/prime_local?schema=public"',
     'set "FRONTEND_URL=http://localhost:3000"',
     'set "CORS_ORIGINS=http://localhost:3000,http://localhost:3001"',
@@ -140,11 +150,11 @@ $backendCommand = @(
     "npm run start:dev"
 ) -join " && "
 
-$frontendCommand = 'title PRIME SITE && set "NEXT_PUBLIC_API_URL=http://localhost:6001/api" && npm run dev'
-$adminCommand = 'title PRIME ADMIN && set "NEXT_PUBLIC_API_URL=http://localhost:6001/api" && npm run dev'
+$frontendCommand = "title PRIME SITE && set \"NEXT_PUBLIC_API_URL=$ApiUrl\" && npm run dev"
+$adminCommand = "title PRIME ADMIN && set \"NEXT_PUBLIC_API_URL=$ApiUrl\" && npm run dev"
 
-if (Test-TcpPort 6001) {
-    Write-Host "Backend port 6001 is already open; backend start skipped." -ForegroundColor Yellow
+if (Test-TcpPort $BackendPort) {
+    Write-Host "Backend port $BackendPort is already open; backend start skipped." -ForegroundColor Yellow
 } else {
     Start-Process -FilePath "cmd.exe" -WorkingDirectory $BackendDir -ArgumentList "/k", $backendCommand | Out-Null
 }
@@ -162,14 +172,14 @@ if (Test-TcpPort 3001) {
 }
 
 Write-Step "Waiting for applications"
-$backendOk = Wait-ForPort 6001 "Backend"
+$backendOk = Wait-ForPort $BackendPort "Backend"
 $frontendOk = Wait-ForPort 3000 "Frontend"
 $adminOk = Wait-ForPort 3001 "Admin"
 
 if (-not ($backendOk -and $frontendOk -and $adminOk)) {
     Write-Host ""
     Write-Host "One or more applications did not start. Keep the three terminal windows open and check the error shown there." -ForegroundColor Red
-    Write-Host "Backend: http://localhost:6001/docs"
+    Write-Host "Backend: $BackendUrl/docs"
     Write-Host "Site:    http://localhost:3000"
     Write-Host "Admin:   http://localhost:3001"
     exit 1
@@ -179,7 +189,7 @@ Write-Host ""
 Write-Host "PRIME local environment is running:" -ForegroundColor Green
 Write-Host "  Site:    http://localhost:3000"
 Write-Host "  Admin:   http://localhost:3001"
-Write-Host "  Swagger: http://localhost:6001/docs"
+Write-Host "  Swagger: $BackendUrl/docs"
 Write-Host ""
 Write-Host "The frontend and admin are pinned to the LOCAL API, not production." -ForegroundColor DarkGray
 
