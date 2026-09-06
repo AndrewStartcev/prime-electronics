@@ -123,7 +123,7 @@ Write-Step "Starting PRIME applications"
 $backendCommand = @(
     "title PRIME BACKEND",
     'set "NODE_ENV=development"',
-    "set \"PORT=$BackendPort\"",
+    ('set "PORT={0}"' -f $BackendPort),
     'set "DATABASE_URL=postgresql://prime:prime_local@127.0.0.1:55432/prime_local?schema=public"',
     'set "FRONTEND_URL=http://localhost:3000"',
     'set "CORS_ORIGINS=http://localhost:3000,http://localhost:3001"',
@@ -150,8 +150,8 @@ $backendCommand = @(
     "npm run start:dev"
 ) -join " && "
 
-$frontendCommand = "title PRIME SITE && set \"NEXT_PUBLIC_API_URL=$ApiUrl\" && npm run dev"
-$adminCommand = "title PRIME ADMIN && set \"NEXT_PUBLIC_API_URL=$ApiUrl\" && npm run dev"
+$frontendCommand = 'title PRIME SITE && set "NEXT_PUBLIC_API_URL={0}" && npm run dev' -f $ApiUrl
+$adminCommand = 'title PRIME ADMIN && set "NEXT_PUBLIC_API_URL={0}" && npm run dev' -f $ApiUrl
 
 if (Test-TcpPort $BackendPort) {
     Write-Host "Backend port $BackendPort is already open; backend start skipped." -ForegroundColor Yellow
