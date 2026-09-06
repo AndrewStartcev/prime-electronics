@@ -30,9 +30,20 @@ export const ProductGallery = memo(({ product }: ProductGalleryProps) => {
     if (!strip) return;
 
     const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+    const thumbnail = strip.firstElementChild as HTMLElement | null;
+    const styles = window.getComputedStyle(strip);
+    const gap = Number.parseFloat(
+      isDesktop ? styles.rowGap || "0" : styles.columnGap || "0",
+    );
+    const step = thumbnail
+      ? (isDesktop ? thumbnail.offsetHeight : thumbnail.offsetWidth) + gap
+      : isDesktop
+        ? 90
+        : 88;
+
     strip.scrollBy({
-      top: isDesktop ? direction * Math.max(120, strip.clientHeight * 0.72) : 0,
-      left: isDesktop ? 0 : direction * Math.max(90, strip.clientWidth * 0.72),
+      top: isDesktop ? direction * step : 0,
+      left: isDesktop ? 0 : direction * step,
       behavior: "smooth",
     });
   };
@@ -83,12 +94,12 @@ export const ProductGallery = memo(({ product }: ProductGalleryProps) => {
   return (
     <>
       <div className="flex flex-col lg:flex-row gap-[10px] md:gap-[14px] lg:gap-[16px] xl:gap-[20px]">
-        <div className="order-2 lg:order-1 flex min-w-0 items-center gap-2 lg:flex-col lg:items-stretch">
+        <div className="order-2 lg:order-1 flex min-w-0 items-center gap-2 lg:h-[440px] lg:flex-col lg:items-stretch lg:justify-between lg:gap-0 xl:h-[580px] 2xl:h-[748px]">
           {showNavigation && (
             <button
               type="button"
               onClick={() => scrollThumbnails(-1)}
-              className="hidden lg:flex h-8 items-center justify-center rounded-lg bg-[#f5f5f7] text-[#131314] transition-colors hover:bg-[#ebebed]"
+              className="hidden lg:flex h-8 shrink-0 items-center justify-center rounded-lg bg-[#f5f5f7] text-[#131314] transition-colors hover:bg-[#ebebed]"
               aria-label="Предыдущие изображения"
               title="Предыдущие изображения"
             >
@@ -110,7 +121,7 @@ export const ProductGallery = memo(({ product }: ProductGalleryProps) => {
 
           <div
             ref={thumbnailStripRef}
-            className="flex min-w-0 flex-1 gap-[8px] overflow-x-auto scroll-smooth scrollbar-hide pb-2 md:gap-[10px] lg:max-h-[380px] lg:flex-none lg:flex-col lg:gap-[10px] lg:overflow-x-hidden lg:overflow-y-auto lg:pb-0 xl:max-h-[520px] xl:gap-[12px] 2xl:max-h-[688px]"
+            className="flex min-w-0 flex-1 snap-x snap-mandatory gap-[8px] overflow-x-auto scroll-smooth scrollbar-hide pb-2 md:gap-[10px] lg:h-[350px] lg:flex-none lg:snap-y lg:flex-col lg:gap-[10px] lg:overflow-x-hidden lg:overflow-y-auto lg:pb-0 xl:h-[436px] xl:gap-[12px] 2xl:h-[658px]"
           >
             {images.map((image, index) => (
               <button
@@ -118,7 +129,7 @@ export const ProductGallery = memo(({ product }: ProductGalleryProps) => {
                 type="button"
                 onClick={() => selectImage(index)}
                 className={cn(
-                  "relative w-[60px] h-[60px] md:w-[80px] md:h-[80px] lg:w-[80px] lg:h-[80px] xl:w-[100px] xl:h-[100px] 2xl:w-[122px] 2xl:h-[122px] rounded-[10px] md:rounded-[12px] lg:rounded-[12px] xl:rounded-[14px] overflow-hidden bg-[#f5f5f7] transition-all shrink-0",
+                  "relative w-[60px] h-[60px] md:w-[80px] md:h-[80px] lg:w-[80px] lg:h-[80px] xl:w-[100px] xl:h-[100px] 2xl:w-[122px] 2xl:h-[122px] snap-start rounded-[10px] md:rounded-[12px] lg:rounded-[12px] xl:rounded-[14px] overflow-hidden bg-[#f5f5f7] transition-all shrink-0",
                   selectedIndex === index
                     ? "border-2 border-[#ef6f2e]"
                     : "border border-transparent hover:border-[rgba(19,19,20,0.16)]",
@@ -141,7 +152,7 @@ export const ProductGallery = memo(({ product }: ProductGalleryProps) => {
             <button
               type="button"
               onClick={() => scrollThumbnails(1)}
-              className="hidden lg:flex h-8 items-center justify-center rounded-lg bg-[#f5f5f7] text-[#131314] transition-colors hover:bg-[#ebebed]"
+              className="hidden lg:flex h-8 shrink-0 items-center justify-center rounded-lg bg-[#f5f5f7] text-[#131314] transition-colors hover:bg-[#ebebed]"
               aria-label="Следующие изображения"
               title="Следующие изображения"
             >
