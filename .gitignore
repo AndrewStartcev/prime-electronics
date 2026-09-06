@@ -1,0 +1,8 @@
+# Local development runtime files
+/.dev/
+
+# Production database dumps are local-only
+/dev-data/*
+!/dev-data/.gitkeep
+/*.sql
+/*.sql.gz
