@@ -214,12 +214,14 @@ const ReviewsTab = ({
       let newReview;
 
       if (isAuthenticated) {
+        // Authenticated user review
         newReview = await reviewApi.create({
           productId,
           rating: reviewRating,
           comment: reviewText || undefined,
         });
       } else {
+        // Guest review
         newReview = await reviewApi.createGuestReview({
           productId,
           rating: reviewRating,
@@ -227,6 +229,7 @@ const ReviewsTab = ({
         });
       }
 
+      // Add the new review to the list
       setReviews((prev) => [
         {
           id: newReview.id,
@@ -239,12 +242,14 @@ const ReviewsTab = ({
         ...prev,
       ]);
 
+      // Update rating and count
       const newCount = currentReviewsCount + 1;
       const newRating =
         (currentRating * currentReviewsCount + reviewRating) / newCount;
       setCurrentRating(newRating);
       setCurrentReviewsCount(newCount);
 
+      // Reset form
       setShowForm(false);
       setReviewRating(0);
       setReviewText("");
@@ -273,16 +278,19 @@ const ReviewsTab = ({
 
   return (
     <div className="flex flex-col gap-[24px] md:gap-[30px] lg:gap-[40px]">
+      {/* Error message */}
       {submitError && (
         <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-[10px] text-[14px] md:text-[16px]">
           {submitError}
         </div>
       )}
 
+      {/* Title */}
       <h3 className="font-medium text-[18px] md:text-[20px] lg:text-[22px] xl:text-[24px] leading-[1.2] text-[#131314]">
         Отзывы покупателей об этом товаре
       </h3>
 
+      {/* Product rating summary */}
       <div className="flex items-center gap-[12px] md:gap-[14px]">
         <div className="flex size-[42px] md:size-[48px] items-center justify-center rounded-full bg-[#fff1e9] text-[#ef6f2e]">
           <Star className="size-[20px] md:size-[23px]" fill="currentColor" />
@@ -389,7 +397,10 @@ const ReviewsTab = ({
             </div>
 
             {ratingError ? (
-              <p role="alert" className="text-[13px] md:text-[14px] text-[#c43e16]">
+              <p
+                role="alert"
+                className="text-[13px] md:text-[14px] text-[#c43e16]"
+              >
                 Выберите оценку, чтобы отправить отзыв.
               </p>
             ) : reviewRating > 0 ? (
@@ -423,8 +434,10 @@ const ReviewsTab = ({
         </div>
       )}
 
+      {/* Sort Dropdown - shown on the right, only when form is not shown */}
       {!showForm && (
         <div className="flex flex-col md:flex-row md:flex-wrap items-stretch md:items-center gap-[12px] md:gap-[16px] lg:gap-[20px]">
+          {/* Write Review Button */}
           <button
             onClick={handleWriteReviewClick}
             className="w-full md:w-auto bg-[#ef6f2e] text-white px-[24px] py-[14px] md:px-[28px] md:py-[16px] lg:px-[34px] lg:py-[20px] rounded-[60px] font-normal text-[14px] md:text-[16px] lg:text-[18px] leading-[1.1] hover:bg-[#d85f24] transition-colors"
@@ -432,6 +445,7 @@ const ReviewsTab = ({
             Написать отзыв
           </button>
 
+          {/* Sort Dropdown */}
           <div className="md:ml-auto border border-[rgba(19,19,20,0.08)] rounded-[10px] md:rounded-[12px] lg:rounded-[14px] px-[16px] py-[12px] md:px-[20px] md:py-[13px] lg:px-[24px] lg:py-[14px] flex items-center justify-between md:justify-start gap-[10px] cursor-pointer hover:bg-[#f5f5f7] transition-colors">
             <span className="font-normal text-[14px] md:text-[16px] lg:text-[18px] leading-[1.1] text-[#131314]">
               Сначала положительные
@@ -453,6 +467,7 @@ const ReviewsTab = ({
         </div>
       )}
 
+      {/* Reviews List */}
       <div className="flex flex-col gap-[20px] md:gap-[24px] lg:gap-[30px]">
         {reviews.length > 0 ? (
           reviews.map((review) => {
@@ -472,6 +487,7 @@ const ReviewsTab = ({
                 className="pb-[20px] md:pb-[24px] lg:pb-[30px] border-b border-[rgba(19,19,20,0.08)] last:border-b-0"
               >
                 <div className="flex items-start gap-[10px] md:gap-[12px] lg:gap-[14px] mb-[16px] md:mb-[20px] lg:mb-[24px]">
+                  {/* Avatar */}
                   <div className="w-[36px] h-[36px] md:w-[40px] md:h-[40px] lg:w-[46px] lg:h-[46px] bg-[#ef6f2e] rounded-full flex items-center justify-center text-white font-medium text-[16px] md:text-[18px] lg:text-[22px] flex-shrink-0">
                     {userInitial}
                   </div>
