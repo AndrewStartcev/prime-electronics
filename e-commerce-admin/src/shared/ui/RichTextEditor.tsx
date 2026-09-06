@@ -106,6 +106,104 @@ function highlightHtml(value: string) {
     .join("");
 }
 
+const BLOCK_TAGS = new Set([
+  "address",
+  "article",
+  "aside",
+  "blockquote",
+  "div",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "header",
+  "li",
+  "main",
+  "nav",
+  "ol",
+  "p",
+  "section",
+  "table",
+  "tbody",
+  "td",
+  "tfoot",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+]);
+
+const RAW_TAGS = new Set(["pre", "script", "style", "textarea"]);
+
+function formatHtml(value: string) {
+  if (typeof document === "undefined" || !value.trim()) return value;
+
+  const template = document.createElement("template");
+  template.innerHTML = value.trim();
+
+  const formatChildren = (parent: ParentNode, depth: number): string[] => {
+    const lines: string[] = [];
+    let inlineBuffer = "";
+
+    const flushInline = () => {
+      const trimmed = inlineBuffer.trim();
+      if (trimmed) lines.push(`${"  ".repeat(depth)}${trimmed}`);
+      inlineBuffer = "";
+    };
+
+    parent.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        inlineBuffer += node.textContent ?? "";
+        return;
+      }
+
+      if (node.nodeType === Node.COMMENT_NODE) {
+        flushInline();
+        lines.push(`${"  ".repeat(depth)}<!--${node.textContent ?? ""}-->`);
+        return;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      const element = node as HTMLElement;
+      const tag = element.tagName.toLowerCase();
+
+      if (!BLOCK_TAGS.has(tag)) {
+        inlineBuffer += element.outerHTML;
+        return;
+      }
+
+      flushInline();
+
+      if (RAW_TAGS.has(tag)) {
+        lines.push(`${"  ".repeat(depth)}${element.outerHTML}`);
+        return;
+      }
+
+      const openingTag = element.outerHTML.slice(
+        0,
+        element.outerHTML.indexOf(">") + 1,
+      );
+      const closingTag = `</${tag}>`;
+
+      lines.push(`${"  ".repeat(depth)}${openingTag}`);
+      lines.push(...formatChildren(element, depth + 1));
+      lines.push(`${"  ".repeat(depth)}${closingTag}`);
+    });
+
+    flushInline();
+    return lines;
+  };
+
+  return formatChildren(template.content, 0).join("\n");
+}
+
 export function RichTextEditor({
   content,
   onChange,
@@ -161,16 +259,13 @@ export function RichTextEditor({
   });
 
   useEffect(() => {
-    if (isHtmlMode) {
-      if (content !== htmlSource) setHtmlSource(content);
-      return;
-    }
+    if (isHtmlMode) return;
 
     if (editor && content !== editor.getHTML()) {
       editor.commands.setContent(content, { emitUpdate: false });
       setHtmlSource(content);
     }
-  }, [editor, content, htmlSource, isHtmlMode]);
+  }, [editor, content, isHtmlMode]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -231,19 +326,36 @@ export function RichTextEditor({
 
     if (isHtmlMode) {
       editor.commands.setContent(htmlSource, { emitUpdate: false });
+      onChange(editor.getHTML());
       setIsHtmlMode(false);
       return;
     }
 
-    const html = editor.getHTML();
-    setHtmlSource(html);
-    onChange(html);
+    const formattedHtml = formatHtml(editor.getHTML());
+    setHtmlSource(formattedHtml);
+    onChange(formattedHtml);
     setIsHtmlMode(true);
   }, [editor, htmlSource, isHtmlMode, onChange]);
 
   const handleSourceChange = (value: string) => {
     setHtmlSource(value);
     onChange(value);
+  };
+
+  const handleSourceKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Tab") return;
+
+    event.preventDefault();
+    const target = event.currentTarget;
+    const start = target.selectionStart;
+    const end = target.selectionEnd;
+    const nextValue = `${htmlSource.slice(0, start)}  ${htmlSource.slice(end)}`;
+
+    handleSourceChange(nextValue);
+    requestAnimationFrame(() => {
+      target.selectionStart = start + 2;
+      target.selectionEnd = start + 2;
+    });
   };
 
   const syncSourceScroll = (target: HTMLTextAreaElement) => {
@@ -390,7 +502,7 @@ export function RichTextEditor({
 
         {isHtmlMode && (
           <div className="px-2 text-sm font-medium text-slate-600">
-            HTML-код статьи
+            HTML-код статьи · отступ 2 пробела
           </div>
         )}
 
@@ -447,6 +559,7 @@ export function RichTextEditor({
           <textarea
             value={htmlSource}
             onChange={(event) => handleSourceChange(event.target.value)}
+            onKeyDown={handleSourceKeyDown}
             onScroll={(event) => syncSourceScroll(event.currentTarget)}
             placeholder={placeholder}
             spellCheck={false}
@@ -464,7 +577,7 @@ export function RichTextEditor({
 
       {isFullscreen && (
         <div className="shrink-0 border-t border-border-gray bg-white px-4 py-2 text-xs text-slate-500">
-          Esc — выйти из полноэкранного режима
+          Esc — выйти из полноэкранного режима · Tab — 2 пробела
         </div>
       )}
     </div>
