@@ -19,13 +19,11 @@ import {
   useCreateBlog,
   type BlogProductBlock,
 } from "@/shared/hooks";
+import {
+  moscowInputToIso,
+  nowForMoscowInput,
+} from "@/shared/lib/blogDateTime";
 import { BlogPublishingFields } from "../_components/BlogPublishingFields";
-
-function nowForInput() {
-  const date = new Date();
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().slice(0, 16);
-}
 
 export default function NewBlogPage() {
   const router = useRouter();
@@ -41,7 +39,7 @@ export default function NewBlogPage() {
     readTime: "5 мин",
     tags: "",
     isActive: true,
-    publishedAt: nowForInput(),
+    publishedAt: nowForMoscowInput(),
     seoTitle: "",
     seoDescription: "",
     seoH1: "",
@@ -76,7 +74,7 @@ export default function NewBlogPage() {
           seoH1: formData.seoH1.trim(),
         },
         isActive: formData.isActive,
-        publishedAt: new Date(formData.publishedAt).toISOString(),
+        publishedAt: moscowInputToIso(formData.publishedAt),
         productBlocks: productBlocks.map((block, blockIndex) => ({
           title: block.title || undefined,
           placement: "AFTER_ARTICLE",
@@ -140,7 +138,7 @@ export default function NewBlogPage() {
           <CardHeader><CardTitle>Публикация</CardTitle></CardHeader>
           <CardContent>
             <label className="flex items-center gap-3 text-sm font-medium"><input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} /> Разрешить публикацию статьи</label>
-            <p className="text-xs text-text-secondary-black mt-2">Если дата в будущем — статья появится автоматически в указанное время. Снятая галочка всегда означает черновик.</p>
+            <p className="text-xs text-text-secondary-black mt-2">Если дата в будущем — статья появится автоматически в указанное московское время. Снятая галочка всегда означает черновик.</p>
           </CardContent>
         </Card>
 
