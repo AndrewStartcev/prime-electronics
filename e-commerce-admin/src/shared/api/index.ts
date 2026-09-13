@@ -96,6 +96,13 @@ export type {
   ProductsImportError,
 } from "../types/dashboard";
 
+export { aiDescriptionsApi } from "./aiDescriptionsApi";
+export type {
+  AiDescriptionSettings,
+  AiDescriptionDraft,
+  AiDescriptionBatch,
+} from "./aiDescriptionsApi";
+
 export { apiClient as api } from "./client";
 
 export type { PaginatedResponse, PaginationParams } from "./categoriesApi";
