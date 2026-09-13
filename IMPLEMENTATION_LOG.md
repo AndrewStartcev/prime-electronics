@@ -81,14 +81,10 @@
 - `e-commerce/src/app/blog/[id]/page.tsx`
 - `e-commerce/src/shared/lib/structuredData.tsx`
 
-Проверить:
-1. количество статей после миграции не изменилось;
-2. существующие имена авторов перенеслись в профили;
-3. создание/редактирование автора, avatar и bio;
-4. выбор автора в статье;
-5. одинаковые данные автора в header и нижней карточке;
-6. удаление автора не удаляет статью;
-7. изменение профиля сразу видно после очистки кеша, которую теперь выполняет backend.
+Проверено пользователем 13.09.2026:
+- создание/выбор автора работает;
+- аватар выводится;
+- информация об авторе выводится.
 
 ## PE-09 — товарные блоки в статьях
 
@@ -96,14 +92,13 @@
 - товары не сохраняются snapshot-HTML;
 - `BlogProductBlock` + `BlogProductBlockItem` связаны с реальными `Product`;
 - enum `BlogProductPlacement`: `AFTER_ARTICLE`, резерв `INLINE`;
-- текущая версия UI реализует `AFTER_ARTICLE`;
 - несколько блоков, заголовок, поиск каталога, добавление/удаление/сортировка товаров;
 - backend хранит только связи и порядок;
 - public API возвращает актуальные данные продукта;
 - неактивные/удалённые товары публично не выводятся;
 - storefront использует существующий `ProductCard`;
 - PE-06 HTML editor не изменялся;
-- `INLINE` только заложен в схему, TipTap-node и шорткоды не добавлялись.
+- базовый вывод после статьи проверен пользователем и работает.
 
 Файлы:
 - `ecommerce-backend/prisma/schema.prisma`
@@ -118,15 +113,64 @@
 - `e-commerce/src/shared/api/blogApi.ts`
 - `e-commerce/src/app/blog/[id]/BlogPostPageClient.tsx`
 
-Проверить:
-1. поиск товара;
-2. отсутствие дублей в одном блоке;
-3. сохранение порядка;
-4. live цена/картинка/наличие без пересохранения статьи;
-5. скрытие inactive/deleted товара;
-6. удаление статьи удаляет только её block relations, но не продукты.
+## Доработка по локальной проверке 13.09.2026 — PE-07 / PE-09
 
-## Локальная проверка PE-07 / PE-08 / PE-09 — исправления 13.09.2026
+### PE-07 — зафиксирован часовой пояс публикации
+
+Проблема:
+- `datetime-local` ранее интерпретировался браузером в часовом поясе компьютера пользователя;
+- из-за этого на машине с часовым поясом UTC+8 выбранное время сохранялось не как московское и отложенная публикация срабатывала в другой момент;
+- в интерфейсе не было указано, по какому часовому поясу задаётся время.
+
+Исправлено:
+- административный интерфейс теперь явно использует **МСК (UTC+3)**;
+- новое значение `datetime-local` формируется в московском времени;
+- при сохранении введённое московское время переводится в UTC ISO (`+03:00 -> UTC`) и именно это значение хранится в PostgreSQL;
+- при редактировании UTC из API переводится обратно в московское `datetime-local`;
+- backend продолжает сравнивать UTC `publishedAt <= now()` — дополнительный server timezone не требуется;
+- дата на storefront форматируется с `timeZone: "Europe/Moscow"`.
+
+Новые/изменённые файлы:
+- `e-commerce-admin/src/shared/lib/blogDateTime.ts` — функции `nowForMoscowInput`, `isoToMoscowInput`, `moscowInputToIso`, подпись `МСК (UTC+3)`;
+- `e-commerce-admin/src/app/blog/new/page.tsx` — сохранение московского времени в UTC;
+- `e-commerce-admin/src/app/blog/[id]/page.tsx` — обратное преобразование UTC ↔ МСК;
+- `e-commerce-admin/src/app/blog/_components/BlogPublishingFields.tsx` — явная подпись часового пояса;
+- `e-commerce/src/app/blog/[id]/BlogPostPageClient.tsx` — вывод даты в `Europe/Moscow`.
+
+Проверить после `git pull`:
+1. создать активную статью на +3–5 минут по **МСК**;
+2. до указанного времени `/blog/:slug` должен отдавать «ещё не опубликована»;
+3. после указанной минуты статья должна открыться сама без повторного сохранения;
+4. в списке блога статья должна появиться без ожидания часового Redis TTL.
+
+### PE-09 — шорткоды товарных блоков
+
+Добавлено:
+- каждому товарному блоку админка показывает стабильный шорткод вида `[[product-block:1]]`;
+- рядом есть кнопка «Копировать»;
+- шорткод можно вставить отдельной строкой в визуальный редактор или HTML source PE-06;
+- номер шорткода привязан к `sortOrder` блока, а не к его текущей позиции массива;
+- удаление соседнего блока больше не перенумеровывает уже созданные shortcode slots;
+- storefront разбирает shortcode внутри `post.text` и рендерит соответствующий `ProductCard`-блок прямо в этом месте;
+- поддержан вариант, когда визуальный редактор оборачивает shortcode в `<p>...</p>`;
+- если блок выведен shortcode-ом внутри статьи, второй раз после статьи он не выводится;
+- блоки без shortcode продолжают работать по прежней схеме — после статьи.
+
+Изменённые файлы:
+- `e-commerce-admin/src/app/blog/_components/BlogPublishingFields.tsx`;
+- `e-commerce-admin/src/app/blog/new/page.tsx`;
+- `e-commerce-admin/src/app/blog/[id]/page.tsx`;
+- `e-commerce/src/app/blog/[id]/BlogPostPageClient.tsx`.
+
+Пример использования:
+
+```text
+<p>Текст до подборки.</p>
+[[product-block:1]]
+<p>Текст после подборки.</p>
+```
+
+## Локальная проверка PE-07 / PE-08 / PE-09 — инфраструктурные исправления 13.09.2026
 
 Во время первой локальной проверки выявлены две проблемы окружения разработки, не production-логики:
 
@@ -143,10 +187,6 @@
 Файлы:
 - `dev.ps1`
 - `ecommerce-backend/src/upload/upload.service.ts`
-
-Коммиты:
-- `f2866b45c19488bb2587d670bd45ce25f4bd69c9` — local image upload fallback;
-- `4422e9ed9d3ed0e7fe4794309c9c7bb50c4e6dcc` — automatic local Prisma sync and backend restart.
 
 ## Миграция БД
 
@@ -171,14 +211,23 @@ Production Git меняется параллельно. Поэтому пере�
 Основная реализация:
 - `1da4fd9259ac93e524086cd70273f279425b1c3a` — backend;
 - `b541d7b1b80ffad396fe676d2b0ba1e2601484cd` — admin;
-- `76dca9297aeee3b8725df1b298752602616725fb` — storefront;
-- `dfe20cb4baafdd32c691bcb4953b99d18a3ac2e2` — initial implementation log.
+- `76dca9297aeee3b8725df1b298752602616725fb` — storefront.
 
-Code-review fixes:
-- `17131d8620fc7f14f217c52778f15765570ee7cc` — cache invalidation after author changes;
-- `4dcac0c39d33309deddc08d8effc62656398a3b3` — related BlogCard props compatibility;
-- `b74ccb3ba7eb866556bdf77fdd8e289f688f4118` — publishedAt/author in Article JSON-LD;
-- `301d6f3885526a97888a97d9ee8e2a055a576d96` — publishedAt/author in blog metadata.
+Code-review и локальные fixes:
+- `17131d8620fc7f14f217c52778f15765570ee7cc` — cache invalidation после изменений автора;
+- `4dcac0c39d33309deddc08d8effc62656398a3b3` — BlogCard props compatibility;
+- `b74ccb3ba7eb866556bdf77fdd8e289f688f4118` — publishedAt/author в Article JSON-LD;
+- `301d6f3885526a97888a97d9ee8e2a055a576d96` — publishedAt/author в blog metadata;
+- `f2866b45c19488bb2587d670bd45ce25f4bd69c9` — local image upload fallback;
+- `4422e9ed9d3ed0e7fe4794309c9c7bb50c4e6dcc` — local Prisma sync/backend restart;
+- `57c2eae242b73454bb8cb68b4514afb692b06765` — Prisma generation after backend stop;
+- `46b5ef5ffd8f5c99de2675ec70a7083a778868d5` — Moscow publication time helpers;
+- `4ab6f08d7ff41aa2c7a08b369b1d1644e04d3c84` — create page Moscow time conversion;
+- `81d70102653bbc8016f33e8c0d4088dd47228dc7` — edit page Moscow time conversion;
+- `7601b80574961ffdda35f2518e99b7a1594d00bb` — shortcode UI and Moscow time label;
+- `d0a00a4b093df60a1d13d76bea107ddcb225797a` — preserve shortcode slots on create;
+- `b37296b170b51304f8f8212ff308efaa4c197941` — preserve shortcode slots on edit;
+- `58cf9d38248ddfa456f88d2e58575de082f8e30e` — render product block shortcodes on storefront.
 
 ## Откат
 
