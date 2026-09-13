@@ -1,10 +1,14 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../shared/services/prisma.service';
 import { CreateBlogAuthorDto, UpdateBlogAuthorDto } from '../dto/blog-author.dto';
+import { BlogCacheService } from './cache.service';
 
 @Injectable()
 export class BlogAuthorService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: BlogCacheService,
+  ) {}
 
   findAll() {
     return this.prisma.blogAuthor.findMany({
@@ -27,15 +31,28 @@ export class BlogAuthorService {
     if (await this.prisma.blogAuthor.findUnique({ where: { name } })) {
       throw new HttpException('Author with this name already exists', HttpStatus.BAD_REQUEST);
     }
-    return this.prisma.blogAuthor.create({ data: { name, avatarUrl: dto.avatarUrl?.trim() || null, bio: dto.bio?.trim() || null, isActive: dto.isActive ?? true } });
+    const author = await this.prisma.blogAuthor.create({
+      data: {
+        name,
+        avatarUrl: dto.avatarUrl?.trim() || null,
+        bio: dto.bio?.trim() || null,
+        isActive: dto.isActive ?? true,
+      },
+    });
+    await this.cacheService.invalidateAllCaches();
+    return author;
   }
 
   async update(id: string, dto: UpdateBlogAuthorDto) {
     await this.findOne(id);
     if (dto.name) {
       const name = dto.name.trim();
-      const duplicate = await this.prisma.blogAuthor.findFirst({ where: { name, id: { not: id } } });
-      if (duplicate) throw new HttpException('Author with this name already exists', HttpStatus.BAD_REQUEST);
+      const duplicate = await this.prisma.blogAuthor.findFirst({
+        where: { name, id: { not: id } },
+      });
+      if (duplicate) {
+        throw new HttpException('Author with this name already exists', HttpStatus.BAD_REQUEST);
+      }
     }
     const author = await this.prisma.blogAuthor.update({
       where: { id },
@@ -46,13 +63,20 @@ export class BlogAuthorService {
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
     });
-    if (dto.name !== undefined) await this.prisma.blog.updateMany({ where: { authorId: id }, data: { author: author.name } });
+    if (dto.name !== undefined) {
+      await this.prisma.blog.updateMany({
+        where: { authorId: id },
+        data: { author: author.name },
+      });
+    }
+    await this.cacheService.invalidateAllCaches();
     return author;
   }
 
   async delete(id: string) {
     await this.findOne(id);
     await this.prisma.blogAuthor.delete({ where: { id } });
+    await this.cacheService.invalidateAllCaches();
     return { deleted: true };
   }
 }
