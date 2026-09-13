@@ -14,8 +14,12 @@ export class AiDescriptionsProcessor {
       await this.service.finishBatchItem(batchId, true);
       return { success: true };
     } catch (error) {
-      await this.service.markDraftError(productId, batchId, error);
-      await this.service.finishBatchItem(batchId, false);
+      const maxAttempts = Number(job.opts.attempts || 1);
+      const isFinalAttempt = job.attemptsMade + 1 >= maxAttempts;
+      if (isFinalAttempt) {
+        await this.service.markDraftError(productId, batchId, error);
+        await this.service.finishBatchItem(batchId, false);
+      }
       throw error;
     }
   }
