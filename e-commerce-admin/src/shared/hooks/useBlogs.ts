@@ -2,7 +2,36 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/shared/api";
 import { toast } from "sonner";
 
-interface Blog {
+export interface BlogAuthor {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  isActive: boolean;
+  _count?: { posts: number };
+}
+
+export interface BlogProductBlockItem {
+  productId: string;
+  sortOrder?: number;
+  product?: {
+    id: string;
+    name: string;
+    slug: string;
+    price: string | number;
+    images?: { url: string }[];
+  };
+}
+
+export interface BlogProductBlock {
+  id?: string;
+  title?: string | null;
+  placement?: "AFTER_ARTICLE" | "INLINE";
+  sortOrder?: number;
+  items: BlogProductBlockItem[];
+}
+
+export interface Blog {
   id: string;
   title: string;
   text: string;
@@ -10,12 +39,16 @@ interface Blog {
   excerpt?: string;
   imageUrl?: string;
   author?: string;
+  authorId?: string | null;
+  authorProfile?: BlogAuthor | null;
   readTime?: string;
   tags?: string[];
   meta?: any;
   isActive: boolean;
+  publishedAt: string;
   createdAt: string;
   updatedAt: string;
+  productBlocks?: BlogProductBlock[];
 }
 
 interface BlogsResponse {
@@ -28,17 +61,20 @@ interface BlogsResponse {
   };
 }
 
-interface CreateBlogDto {
+export interface CreateBlogDto {
   title: string;
   text: string;
   slug: string;
   excerpt?: string;
   imageUrl?: string;
   author?: string;
+  authorId?: string;
   readTime?: string;
   tags?: string[];
   meta?: any;
   isActive?: boolean;
+  publishedAt?: string;
+  productBlocks?: BlogProductBlock[];
 }
 
 interface UpdateBlogDto extends Partial<CreateBlogDto> {}
@@ -63,6 +99,52 @@ export function useBlog(id: string) {
       return response.data;
     },
     enabled: !!id,
+  });
+}
+
+export function useBlogAuthors() {
+  return useQuery<BlogAuthor[]>({
+    queryKey: ["blog-authors"],
+    queryFn: async () => (await api.get("/blog-authors")).data,
+  });
+}
+
+export function useCreateBlogAuthor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Omit<BlogAuthor, "id" | "_count">) =>
+      (await api.post("/blog-authors", data)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["blog-authors"] });
+      toast.success("Автор создан");
+    },
+    onError: (error: any) =>
+      toast.error(error.response?.data?.message || "Не удалось создать автора"),
+  });
+}
+
+export function useUpdateBlogAuthor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<BlogAuthor> }) =>
+      (await api.patch(`/blog-authors/${id}`, data)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["blog-authors"] });
+      queryClient.invalidateQueries({ queryKey: ["blogs"] });
+      toast.success("Автор обновлён");
+    },
+  });
+}
+
+export function useDeleteBlogAuthor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => (await api.delete(`/blog-authors/${id}`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["blog-authors"] });
+      queryClient.invalidateQueries({ queryKey: ["blogs"] });
+      toast.success("Автор удалён");
+    },
   });
 }
 
@@ -99,7 +181,7 @@ export function useUpdateBlog() {
     },
     onError: (error: any) => {
       toast.error(
-        error.response?.data?.message || "Не удалось обновить статью"
+        error.response?.data?.message || "Не удалось обновить статью",
       );
     },
   });
