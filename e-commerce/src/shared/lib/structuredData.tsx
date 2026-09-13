@@ -261,18 +261,21 @@ export function buildArticleStructuredData(post: Blog): JsonLdValue {
     cleanText(post.text)?.slice(0, 220) ||
     `${post.title} в блоге Prime Electronics`;
   const image = absoluteUrl(post.imageUrl) || absoluteSiteUrl("/images/blog.png");
+  const authorName = cleanText(post.authorProfile?.name) || cleanText(post.author) || "Prime Electronics";
 
   return {
     "@context": "https://schema.org",
     "@type": "TechArticle",
     headline: post.title,
     image,
-    datePublished: post.createdAt,
+    datePublished: post.publishedAt || post.createdAt,
     dateModified: post.updatedAt,
     url: absoluteSiteUrl(`/blog/${post.slug.toLowerCase()}`),
     author: {
       "@type": "Person",
-      name: cleanText(post.author) || "Prime Electronics",
+      name: authorName,
+      image: absoluteUrl(post.authorProfile?.avatarUrl),
+      description: cleanText(post.authorProfile?.bio),
     },
     publisher: {
       "@type": "Organization",
