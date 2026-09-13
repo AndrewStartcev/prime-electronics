@@ -78,7 +78,7 @@ export default function BlogPostPageClient({ initialH1 }: { initialH1?: string }
           </div>
         </article>
 
-        {relatedPosts.length > 0 && <section className="mt-16"><h2 className="font-medium text-[28px] md:text-[36px] mb-8">Похожие статьи</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{relatedPosts.map((item) => <BlogCard key={item.id} id={item.id} title={item.title} excerpt={item.excerpt || ""} imageUrl={item.imageUrl || ""} link={`/blog/${item.slug}`} date={new Date(item.publishedAt || item.createdAt).toLocaleDateString("ru-RU")} readTime={item.readTime || "5 мин"} tags={item.tags || []} variant="small" />)}</div></section>}
+        {relatedPosts.length > 0 && <section className="mt-16"><h2 className="font-medium text-[28px] md:text-[36px] mb-8">Похожие статьи</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{relatedPosts.map((item) => <BlogCard key={item.id} id={item.id} title={item.title} excerpt={item.excerpt || ""} imageUrl={item.imageUrl || ""} link={`/blog/${item.slug}`} variant="small" />)}</div></section>}
       </div>
     </main>
   );
