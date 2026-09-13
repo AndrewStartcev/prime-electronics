@@ -3,8 +3,8 @@
 Назначение: зафиксировать изменения технического репозитория `AndrewStartcev/prime-electronics` для последующего сопоставления с параллельно меняющимся production Git клиента.
 
 - **Дата:** 13.09.2026
-- **Ветка:** `task/pe-07-08-09-blog-content`
-- **Статус:** реализовано в коде, до merge в `main` требуется локальная проверка.
+- **Ветка:** `main`
+- **Статус:** реализовано в `main`, требуется локальная функциональная проверка перед переносом в production Git клиента.
 
 ## PE-07 — дата публикации и отложенная публикация
 
@@ -125,6 +125,28 @@
 4. live цена/картинка/наличие без пересохранения статьи;
 5. скрытие inactive/deleted товара;
 6. удаление статьи удаляет только её block relations, но не продукты.
+
+## Локальная проверка PE-07 / PE-08 / PE-09 — исправления 13.09.2026
+
+Во время первой локальной проверки выявлены две проблемы окружения разработки, не production-логики:
+
+1. `Cannot POST /api/blog-authors` — локальный backend мог продолжать работать со старым кодом и старым Prisma Client после `git pull`; обычный `dev.cmd` ранее не выполнял новые migration/`prisma generate`.
+2. upload изображений возвращал HTTP 400, потому что локальный `dev.ps1` намеренно очищает production Cloudinary credentials, а `UploadService` до этого поддерживал только Cloudinary.
+
+Исправлено:
+- `dev.ps1` теперь на каждом запуске после готовности локального PostgreSQL выполняет `npm run prisma:generate` и `prisma migrate deploy` **только с локальным `DATABASE_URL`**;
+- `dev.ps1` перезапускает локальный backend на порту `16001`, чтобы после `git pull` гарантированно загрузились новые Nest controllers и Prisma Client;
+- production DB этим процессом не затрагивается;
+- `UploadService` в `development` при отсутствии Cloudinary credentials сохраняет изображения в `ecommerce-backend/public/images/uploads/` и возвращает URL локального backend;
+- в production при наличии Cloudinary credentials остаётся прежняя Cloudinary-логика.
+
+Файлы:
+- `dev.ps1`
+- `ecommerce-backend/src/upload/upload.service.ts`
+
+Коммиты:
+- `f2866b45c19488bb2587d670bd45ce25f4bd69c9` — local image upload fallback;
+- `4422e9ed9d3ed0e7fe4794309c9c7bb50c4e6dcc` — automatic local Prisma sync and backend restart.
 
 ## Миграция БД
 
