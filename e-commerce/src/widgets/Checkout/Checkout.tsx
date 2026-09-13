@@ -205,20 +205,17 @@ export const Checkout = () => {
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuthStore();
 
-  // Redirect unauthenticated users to login
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace("/login");
     }
   }, [isAuthenticated, router]);
 
-  // Get orderId from URL
   const orderIdFromUrl = searchParams.get("orderId");
   const promoCodeFromUrl = searchParams.get("promoCode") || "";
   const paymentMethodFromUrl: PaymentMethodChoice =
     searchParams.get("paymentMethod") === "card" ? "card" : "cash";
 
-  // Получаем данные корзины
   const { data: guestCart, isLoading: guestCartLoading } = useCart();
 
   const { data: userCart = [], isLoading: userCartLoading } = useQuery({
@@ -231,7 +228,6 @@ export const Checkout = () => {
     refetchOnMount: false,
   });
 
-  // Получаем пункты выдачи
   const { data: pickupPointsData } = useQuery({
     queryKey: ["pickupPoints"],
     queryFn: () => pickupPointApi.getAll(),
@@ -247,7 +243,6 @@ export const Checkout = () => {
   const [useBonuses, setUseBonuses] = useState(true);
   const [manualAddress, setManualAddress] = useState(false);
 
-  // Loyalty data
   const { data: loyaltyData } = useQuery({
     queryKey: ["loyaltyInfo"],
     queryFn: () => userApi.getLoyaltyInfo(),
@@ -255,7 +250,6 @@ export const Checkout = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Form fields
   const [fullName, setFullName] = useState("");
   const [phoneValue, setPhoneValue] = useState("");
   const [email, setEmail] = useState("");
@@ -278,7 +272,6 @@ export const Checkout = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // Order state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
@@ -383,7 +376,6 @@ export const Checkout = () => {
     }
   }, []);
 
-  // Auto-select first pickup point when switching to pickup
   useEffect(() => {
     if (
       deliveryMethod === "pickup" &&
@@ -394,7 +386,6 @@ export const Checkout = () => {
     }
   }, [deliveryMethod, pickupPoints, selectedPickupPoint]);
 
-  // Преобразуем данные корзины в единый формат
   useEffect(() => {
     if (isAuthenticated && userCart && userCart.length > 0) {
       const items: CartItem[] = userCart.map((item: any) => ({
@@ -431,7 +422,6 @@ export const Checkout = () => {
     }
   }, [isAuthenticated, guestCart?.items, userCart]);
 
-  // Рассчитываем итоговые суммы
   const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
@@ -531,7 +521,6 @@ export const Checkout = () => {
     setOrderError(null);
   }, []);
 
-  // Validate form
   const validateForm = () => {
     const nextErrors: CheckoutFieldErrors = {};
 
@@ -574,7 +563,6 @@ export const Checkout = () => {
     return true;
   };
 
-  // Handle order submission - NEW 2-step flow
   const handleSubmitOrder = async () => {
     if (!validateForm()) return;
 
@@ -593,7 +581,6 @@ export const Checkout = () => {
         ? parseInt(orderIdFromUrl)
         : (await orderApi.initOrder({}, false)).id;
 
-      // Step 1: Apply promo code if provided
       if (isPromoValidated && validatedCoupon) {
         try {
           await orderApi.applyCoupon(orderId, validatedCoupon.code);
@@ -605,7 +592,6 @@ export const Checkout = () => {
         }
       }
 
-      // Step 2: Finalize order with all details in one call
       const finalizeData: FinalizeOrderDto = {
         deliveryMethod: deliveryMethod === "pickup" ? "PICKUP" : "DELIVERY",
         buyer: fullName,
@@ -634,11 +620,9 @@ export const Checkout = () => {
 
       await orderApi.finalizeOrder(orderId, finalizeData);
 
-      // Clear cart cache
       queryClient.invalidateQueries({ queryKey: ["userCart"] });
       queryClient.invalidateQueries({ queryKey: ["guestCart"] });
 
-      // Redirect to order confirmation
       router.push(`/order-confirmation?orderId=${orderId}`);
     } catch (error: any) {
       console.error("Order submission error:", error);
@@ -695,7 +679,6 @@ export const Checkout = () => {
     [],
   );
 
-  // Функция для получения адреса по координатам
   const getAddressFromCoords = useCallback(
     async (coords: [number, number]) => {
       try {
@@ -721,7 +704,6 @@ export const Checkout = () => {
     [applyResolvedAddress, loadServerAddressFromCoords],
   );
 
-  // Функция для получения координат по адресу
   const getCoordsFromAddress = useCallback(
     async (addressStr: string): Promise<[number, number] | null> => {
       if (!ymapsRef.current || !addressStr.trim()) return null;
@@ -955,7 +937,6 @@ export const Checkout = () => {
     [loadServerAddressSuggestions],
   );
 
-  // Инициализация Яндекс Карт
   useEffect(() => {
     let cleanupMapContainerClick: (() => void) | null = null;
 
@@ -1261,7 +1242,6 @@ export const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Back navigation */}
       <div className="max-w-[1920px] mx-auto px-[16px] md:px-[24px] lg:px-[40px] xl:px-[60px] 2xl:px-[120px] pt-[60px] md:pt-[80px] lg:pt-[100px] xl:pt-[120px] 2xl:pt-[140px]">
         <Link
           href="/basket"
@@ -1292,9 +1272,7 @@ export const Checkout = () => {
       </div>
 
       <div className="max-w-[1920px] mx-auto px-[16px] md:px-[24px] lg:px-[40px] xl:px-[60px] 2xl:px-[120px] flex flex-col lg:flex-row gap-[30px] md:gap-[40px] relative pb-[40px] md:pb-[60px] lg:pb-[80px]">
-        {/* Left column - Form */}
         <div className="flex-1 w-full lg:max-w-[calc(100%-547px-40px)]">
-          {/* Customer info */}
           <div className="border border-[rgba(19,19,20,0.16)] rounded-[14px] md:rounded-[16px] lg:rounded-[20px] p-[20px] md:p-[24px] lg:p-[30px] mb-[20px] md:mb-[24px] lg:mb-[30px]">
             {orderError && (
               <div className="bg-red-50 border border-red-200 rounded-[12px] p-[16px] mb-[20px]">
@@ -1304,7 +1282,6 @@ export const Checkout = () => {
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px] md:gap-[24px] lg:gap-[30px] mb-[20px] md:mb-[24px] lg:mb-[30px]">
-              {/* Full name */}
               <div
                 ref={fullNameFieldRef}
                 className="flex flex-col gap-[8px] md:gap-[10px] lg:gap-[12px]"
@@ -1336,7 +1313,6 @@ export const Checkout = () => {
                 />
               </div>
 
-              {/* Phone */}
               <div
                 ref={phoneFieldRef}
                 className="flex flex-col gap-[8px] md:gap-[10px] lg:gap-[12px]"
@@ -1364,7 +1340,6 @@ export const Checkout = () => {
                 />
               </div>
 
-              {/* Email */}
               <div
                 ref={emailFieldRef}
                 className="flex flex-col gap-[8px] md:gap-[10px] lg:gap-[12px]"
@@ -1392,7 +1367,6 @@ export const Checkout = () => {
                 />
               </div>
 
-              {/* Promo code */}
               <div className="flex flex-col gap-[8px] md:gap-[10px] lg:gap-[12px]">
                 <label className="font-medium text-[18px] md:text-[20px] lg:text-[22px] leading-[1.3] text-[#131314]">
                   Промокод
@@ -1445,7 +1419,6 @@ export const Checkout = () => {
               </div>
             </div>
 
-            {/* Comment */}
             <div className="flex flex-col gap-[10px] md:gap-[12px] lg:gap-[14px]">
               <label className="font-medium text-[18px] md:text-[20px] lg:text-[22px] leading-[1.3] text-[#131314]">
                 Комментарий к заказу
@@ -1462,7 +1435,6 @@ export const Checkout = () => {
             </div>
           </div>
 
-          {/* Bonuses */}
           <div className="bg-[#f5f5f7] rounded-[14px] md:rounded-[16px] lg:rounded-[20px] p-[20px] md:p-[24px] lg:p-[30px] mb-[20px] md:mb-[24px] lg:mb-[30px]">
             <div className="flex items-center gap-[12px] md:gap-[14px] lg:gap-[15px] mb-[16px] md:mb-[18px] lg:mb-[20px]">
               <p className="font-medium text-[18px] md:text-[20px] lg:text-[22px] leading-[1.3] text-[#131314]">
@@ -1586,7 +1558,6 @@ export const Checkout = () => {
             )}
           </div>
 
-          {/* Delivery method */}
           <div className="mb-[20px] md:mb-[24px] lg:mb-[30px]">
             <p className="font-medium text-[18px] md:text-[20px] lg:text-[22px] leading-[1.3] text-[#131314] mb-[20px] md:mb-[24px] lg:mb-[30px]">
               Способ доставки
@@ -1622,7 +1593,6 @@ export const Checkout = () => {
 
             {deliveryMethod === "delivery" && (
               <>
-                {/* Address input */}
                 <div
                   ref={addressFieldRef}
                   className="flex flex-col gap-[8px] md:gap-[10px] lg:gap-[12px] mb-[16px] md:mb-[20px] lg:mb-[24px] relative z-20"
@@ -1738,7 +1708,6 @@ export const Checkout = () => {
                   </div>
                 </div>
 
-                {/* Manual address toggle */}
                 <div className="flex items-center gap-[16px] md:gap-[20px] lg:gap-[24px]">
                   <p className="font-normal text-[16px] md:text-[17px] lg:text-[18px] leading-[1.1] text-[#131314]">
                     Указать адрес без карты
@@ -1800,7 +1769,6 @@ export const Checkout = () => {
             )}
           </div>
 
-          {/* Delivery map - hide when manual address or pickup */}
           {deliveryMethod === "delivery" && !manualAddress && (
             <div className="w-full h-[300px] md:h-[400px] lg:h-[500px] xl:h-[617px] rounded-[14px] md:rounded-[16px] lg:rounded-[20px] overflow-hidden mb-[20px] md:mb-[24px] lg:mb-[30px] relative z-0">
               {mapProvider === "yandex" ? (
@@ -1821,13 +1789,11 @@ export const Checkout = () => {
             </div>
           )}
 
-          {/* Date and time selection */}
           <div className="mb-[20px] md:mb-[24px] lg:mb-[30px]">
             <p className="font-medium text-[18px] md:text-[20px] lg:text-[22px] leading-[1.3] text-[#131314] mb-[20px] md:mb-[24px] lg:mb-[30px]">
               Выберите дату и время доставки
             </p>
             <div className="flex flex-col md:flex-row gap-[16px] md:gap-[20px]">
-              {/* Date picker */}
               <div className="flex-1 relative">
                 <button
                   type="button"
@@ -1898,7 +1864,6 @@ export const Checkout = () => {
                   </div>
                 </button>
 
-                {/* Date dropdown */}
                 {showDatePicker && (
                   <div className="absolute top-full left-0 right-0 mt-[8px] bg-white border border-[rgba(19,19,20,0.16)] rounded-[12px] shadow-lg z-50 overflow-hidden">
                     {Array.from({ length: 7 }, (_, i) => {
@@ -1930,7 +1895,6 @@ export const Checkout = () => {
                 )}
               </div>
 
-              {/* Time picker */}
               <div className="flex-1 relative">
                 <button
                   type="button"
@@ -1988,7 +1952,6 @@ export const Checkout = () => {
                   </div>
                 </button>
 
-                {/* Time dropdown */}
                 {showTimePicker && (
                   <div className="absolute top-full left-0 right-0 mt-[8px] bg-white border border-[rgba(19,19,20,0.16)] rounded-[12px] shadow-lg z-50 overflow-hidden">
                     {[
@@ -2020,7 +1983,6 @@ export const Checkout = () => {
             </div>
           </div>
 
-          {/* Payment method */}
           <div className="mb-[20px] md:mb-[24px] lg:mb-[30px]">
             <p className="font-medium text-[18px] md:text-[20px] lg:text-[22px] leading-[1.3] text-[#131314] mb-[20px] md:mb-[24px] lg:mb-[30px]">
               Способ оплаты
@@ -2057,7 +2019,6 @@ export const Checkout = () => {
           </div>
         </div>
 
-        {/* Right column - Order summary */}
         <div className="w-full lg:w-[400px] xl:w-[480px] 2xl:w-[547px] lg:sticky lg:top-[30px] h-fit">
           <div className="bg-white rounded-[14px] md:rounded-[16px] lg:rounded-[20px] shadow-[0px_4px_30px_0px_rgba(19,19,20,0.1)] p-[20px] md:p-[24px] lg:p-[30px]">
             <div className="flex items-center justify-between mb-[16px] md:mb-[18px] lg:mb-[20px]">
@@ -2129,7 +2090,11 @@ export const Checkout = () => {
                   Дата и время доставки:
                 </p>
                 <p className="font-medium text-[16px] md:text-[17px] lg:text-[18px] leading-[1.1] text-[#131314] text-right">
-                  17 ноября ; 17:00–22:00
+                  {selectedDate.toLocaleDateString("ru-RU", {
+                    day: "numeric",
+                    month: "long",
+                  })}{" "}
+                  ; {selectedTimeSlot.replace("-", "–")}
                 </p>
               </div>
 
