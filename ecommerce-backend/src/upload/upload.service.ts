@@ -28,6 +28,28 @@ export class UploadService {
     );
   }
 
+  private hasCloudinaryConfig(): boolean {
+    return Boolean(
+      this.configService.get<string>('CLOUDINARY_API_KEY') &&
+        this.configService.get<string>('CLOUDINARY_API_SECRET') &&
+        this.configService.get<string>('CLOUDINARY_CLOUD_NAME'),
+    );
+  }
+
+  private async saveLocalImage(
+    file: Express.Multer.File,
+    filename: string,
+  ): Promise<string> {
+    const uploadDir = path.resolve(process.cwd(), 'public', 'images', 'uploads');
+    await fs.mkdir(uploadDir, { recursive: true });
+    await fs.writeFile(path.join(uploadDir, filename), file.buffer);
+
+    const port = this.configService.get<string>('PORT') || '6001';
+    const url = `http://localhost:${port}/images/uploads/${filename}`;
+    this.logger.log(`Image saved locally: ${url}`);
+    return url;
+  }
+
   async saveImage(
     file: Express.Multer.File,
     filename: string,
@@ -35,6 +57,18 @@ export class UploadService {
   ): Promise<string> {
     try {
       this.logger.log(`Uploading image: ${filename}`);
+
+      // Local development intentionally runs without production Cloudinary
+      // credentials. Keep production behavior unchanged, but allow admin image
+      // fields to be tested locally using the backend's existing /images static
+      // directory.
+      if (
+        this.configService.get<string>('NODE_ENV') !== 'production' &&
+        !this.hasCloudinaryConfig()
+      ) {
+        return this.saveLocalImage(file, filename);
+      }
+
       const withWatermark = options?.withWatermark === true;
 
       const uploadOptions: Record<string, any> = {
