@@ -56,6 +56,7 @@ export async function generateMetadata({
   const { id } = await params;
   const post = await getBlogPost(id);
   const seo = post ? await resolveBlogPostSeo(post) : null;
+  const authorName = post?.authorProfile?.name || post?.author;
 
   return metadataFromSeo({
     title: seo?.title || "Prime Electronics",
@@ -64,9 +65,9 @@ export async function generateMetadata({
     canonicalPath: `/blog/${id.toLowerCase()}`,
     image: post?.imageUrl,
     openGraphType: "article",
-    publishedTime: post?.createdAt,
+    publishedTime: post?.publishedAt || post?.createdAt,
     modifiedTime: post?.updatedAt,
-    authors: post?.author ? [post.author] : undefined,
+    authors: authorName ? [authorName] : undefined,
     section: "Блог",
   });
 }
