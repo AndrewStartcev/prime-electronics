@@ -78,7 +78,7 @@ export default function NewBlogPage() {
         productBlocks: productBlocks.map((block, blockIndex) => ({
           title: block.title || undefined,
           placement: "AFTER_ARTICLE",
-          sortOrder: blockIndex,
+          sortOrder: block.sortOrder ?? blockIndex,
           items: block.items.map((item, itemIndex) => ({
             productId: item.productId,
             sortOrder: itemIndex,
