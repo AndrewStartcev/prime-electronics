@@ -14,6 +14,7 @@ $AdminDir = Join-Path $Root "e-commerce-admin"
 $BackendPort = 16001
 $BackendUrl = "http://localhost:$BackendPort"
 $ApiUrl = "$BackendUrl/api"
+$LocalDatabaseUrl = "postgresql://prime:prime_local@127.0.0.1:55432/prime_local?schema=public"
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -39,6 +40,21 @@ function Test-TcpPort([int]$Port) {
         return $false
     } finally {
         $client.Close()
+    }
+}
+
+function Stop-ProcessOnPort([int]$Port, [string]$Name) {
+    try {
+        $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+        $pids = @($connections | Select-Object -ExpandProperty OwningProcess -Unique)
+        foreach ($processId in $pids) {
+            if ($processId -and $processId -ne $PID) {
+                Write-Host "Restarting $Name (PID $processId) to load current code." -ForegroundColor Yellow
+                & taskkill.exe /PID $processId /T /F 1>$null 2>$null
+            }
+        }
+    } catch {
+        Write-Host "Could not stop existing $Name automatically: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
@@ -77,6 +93,36 @@ function Wait-ForPostgres([int]$TimeoutSeconds = 120) {
         Start-Sleep -Seconds 1
     }
     return $false
+}
+
+function Sync-LocalPrisma {
+    Write-Step "Syncing Prisma client and local migrations"
+
+    $previousDatabaseUrl = $env:DATABASE_URL
+    $oldPreference = $ErrorActionPreference
+    try {
+        $env:DATABASE_URL = $LocalDatabaseUrl
+        $ErrorActionPreference = "Continue"
+        Push-Location $BackendDir
+
+        & npm.cmd run prisma:generate
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Prisma client generation failed."
+        }
+
+        & npx.cmd prisma migrate deploy --config=./prisma/prisma.config.ts
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Local Prisma migrations failed. Production database was not touched."
+        }
+    } finally {
+        Pop-Location
+        $ErrorActionPreference = $oldPreference
+        if ($null -eq $previousDatabaseUrl) {
+            Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+        } else {
+            $env:DATABASE_URL = $previousDatabaseUrl
+        }
+    }
 }
 
 function Needs-Setup {
@@ -147,6 +193,8 @@ if (-not (Wait-ForPostgres)) {
     Fail "Local PostgreSQL did not become ready within 120 seconds."
 }
 
+Sync-LocalPrisma
+
 if (-not (Test-Path -LiteralPath $LocalAdminScript -PathType Leaf)) {
     Fail "local-admin.js not found in repository root. Run git pull and try again."
 }
@@ -159,13 +207,20 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Step "Starting PRIME applications"
 
+# The backend must be restarted after pulls/schema changes so new Nest controllers
+# and the freshly generated Prisma client are actually loaded.
+if (Test-TcpPort $BackendPort) {
+    Stop-ProcessOnPort $BackendPort "backend"
+    Start-Sleep -Seconds 1
+}
+
 # Force safe local values in child processes as well. This overrides any
 # machine-level environment variables that may contain production credentials.
 $backendCommand = @(
     "title PRIME BACKEND",
     'set "NODE_ENV=development"',
     ('set "PORT={0}"' -f $BackendPort),
-    'set "DATABASE_URL=postgresql://prime:prime_local@127.0.0.1:55432/prime_local?schema=public"',
+    ('set "DATABASE_URL={0}"' -f $LocalDatabaseUrl),
     'set "FRONTEND_URL=http://localhost:3000"',
     'set "CORS_ORIGINS=http://localhost:3000,http://localhost:3001"',
     'set "JWT_ACCESS_SECRET=prime-local-access-secret-do-not-use-in-production"',
@@ -194,11 +249,7 @@ $backendCommand = @(
 $frontendCommand = 'title PRIME SITE && set "NEXT_PUBLIC_API_URL={0}" && npm run dev' -f $ApiUrl
 $adminCommand = 'title PRIME ADMIN && set "NEXT_PUBLIC_API_URL={0}" && npm run dev' -f $ApiUrl
 
-if (Test-TcpPort $BackendPort) {
-    Write-Host "Backend port $BackendPort is already open; backend start skipped." -ForegroundColor Yellow
-} else {
-    Start-Process -FilePath "cmd.exe" -WorkingDirectory $BackendDir -ArgumentList "/k", $backendCommand | Out-Null
-}
+Start-Process -FilePath "cmd.exe" -WorkingDirectory $BackendDir -ArgumentList "/k", $backendCommand | Out-Null
 
 if (Test-TcpPort 3000) {
     Write-Host "Frontend port 3000 is already open; frontend start skipped." -ForegroundColor Yellow
