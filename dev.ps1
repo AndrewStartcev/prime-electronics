@@ -43,21 +43,6 @@ function Test-TcpPort([int]$Port) {
     }
 }
 
-function Stop-ProcessOnPort([int]$Port, [string]$Name) {
-    try {
-        $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-        $pids = @($connections | Select-Object -ExpandProperty OwningProcess -Unique)
-        foreach ($processId in $pids) {
-            if ($processId -and $processId -ne $PID) {
-                Write-Host "Restarting $Name (PID $processId) to load current code." -ForegroundColor Yellow
-                & taskkill.exe /PID $processId /T /F 1>$null 2>$null
-            }
-        }
-    } catch {
-        Write-Host "Could not stop existing $Name automatically: $($_.Exception.Message)" -ForegroundColor Yellow
-    }
-}
-
 function Wait-ForPort([int]$Port, [string]$Name, [int]$TimeoutSeconds = 90) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
@@ -68,6 +53,21 @@ function Wait-ForPort([int]$Port, [string]$Name, [int]$TimeoutSeconds = 90) {
         Start-Sleep -Seconds 1
     }
     return $false
+}
+
+function Stop-ProcessOnPort([int]$Port, [string]$Name) {
+    $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if (-not $connections) {
+        return
+    }
+
+    $processIds = $connections | Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($processId in $processIds) {
+        if ($processId -and $processId -ne $PID) {
+            Write-Host "Stopping existing $Name process (PID $processId) on port $Port..." -ForegroundColor Yellow
+            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function Test-PostgresReady {
@@ -105,12 +105,12 @@ function Sync-LocalPrisma {
         $ErrorActionPreference = "Continue"
         Push-Location $BackendDir
 
-        & npm.cmd run prisma:generate
+        & npx.cmd prisma generate --schema=./prisma/schema.prisma --config=./prisma/prisma.config.ts
         if ($LASTEXITCODE -ne 0) {
             Fail "Prisma client generation failed."
         }
 
-        & npx.cmd prisma migrate deploy --config=./prisma/prisma.config.ts
+        & npx.cmd prisma migrate deploy --schema=./prisma/schema.prisma --config=./prisma/prisma.config.ts
         if ($LASTEXITCODE -ne 0) {
             Fail "Local Prisma migrations failed. Production database was not touched."
         }
@@ -193,6 +193,13 @@ if (-not (Wait-ForPostgres)) {
     Fail "Local PostgreSQL did not become ready within 120 seconds."
 }
 
+# On Windows a running Nest process can keep the generated Prisma client loaded.
+# Stop it before prisma generate so schema changes cannot compile against stale types.
+if (Test-TcpPort $BackendPort) {
+    Stop-ProcessOnPort $BackendPort "backend"
+    Start-Sleep -Seconds 2
+}
+
 Sync-LocalPrisma
 
 if (-not (Test-Path -LiteralPath $LocalAdminScript -PathType Leaf)) {
@@ -206,13 +213,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Step "Starting PRIME applications"
-
-# The backend must be restarted after pulls/schema changes so new Nest controllers
-# and the freshly generated Prisma client are actually loaded.
-if (Test-TcpPort $BackendPort) {
-    Stop-ProcessOnPort $BackendPort "backend"
-    Start-Sleep -Seconds 1
-}
 
 # Force safe local values in child processes as well. This overrides any
 # machine-level environment variables that may contain production credentials.
