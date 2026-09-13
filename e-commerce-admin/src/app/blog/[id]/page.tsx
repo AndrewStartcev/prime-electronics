@@ -15,13 +15,11 @@ import {
   Textarea,
 } from "@/shared/ui";
 import { useBlog, useUpdateBlog, type BlogProductBlock } from "@/shared/hooks";
+import {
+  isoToMoscowInput,
+  moscowInputToIso,
+} from "@/shared/lib/blogDateTime";
 import { BlogPublishingFields } from "../_components/BlogPublishingFields";
-
-function toInputDate(value: string) {
-  const date = new Date(value);
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().slice(0, 16);
-}
 
 export default function EditBlogPage() {
   const router = useRouter();
@@ -51,7 +49,7 @@ export default function EditBlogPage() {
       readTime: blog.readTime || "5 мин",
       tags: blog.tags?.join(", ") || "",
       isActive: blog.isActive ?? true,
-      publishedAt: toInputDate(blog.publishedAt || blog.createdAt),
+      publishedAt: isoToMoscowInput(blog.publishedAt || blog.createdAt),
       seoTitle: String(meta.seoTitle || meta.title || ""),
       seoDescription: String(meta.seoDescription || meta.description || ""),
       seoH1: String(meta.seoH1 || meta.h1 || ""),
@@ -78,7 +76,7 @@ export default function EditBlogPage() {
         tags,
         meta: { ...currentMeta, seoTitle: formData.seoTitle.trim(), seoDescription: formData.seoDescription.trim(), seoH1: formData.seoH1.trim() },
         isActive: formData.isActive,
-        publishedAt: new Date(formData.publishedAt).toISOString(),
+        publishedAt: moscowInputToIso(formData.publishedAt),
         productBlocks: productBlocks.map((block, blockIndex) => ({
           title: block.title || undefined,
           placement: "AFTER_ARTICLE",
@@ -124,7 +122,7 @@ export default function EditBlogPage() {
 
         <Card><CardHeader><CardTitle>Публикация</CardTitle></CardHeader><CardContent>
           <label className="flex items-center gap-3 text-sm font-medium"><input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} /> Разрешить публикацию статьи</label>
-          <p className="text-xs text-text-secondary-black mt-2">Активная статья с будущей датой считается запланированной и появится автоматически.</p>
+          <p className="text-xs text-text-secondary-black mt-2">Активная статья с будущей датой считается запланированной и появится автоматически в указанное московское время.</p>
         </CardContent></Card>
 
         <div className="flex gap-3 justify-end"><Button type="button" variant="outline" onClick={() => router.back()}>Отмена</Button><Button type="submit" variant="primary" disabled={updateBlog.isPending}>{updateBlog.isPending ? "Сохранение..." : "Сохранить изменения"}</Button></div>
