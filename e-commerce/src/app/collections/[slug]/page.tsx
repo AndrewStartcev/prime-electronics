@@ -8,6 +8,7 @@ import {
 import { Breadcrumb } from "@/shared/ui/Breadcrumb";
 import { HtmlContent } from "@/shared/ui";
 import { htmlToPlainText } from "@/shared/lib/html";
+import { resolveSeoText } from "@/shared/lib/seo";
 import {
   absoluteSiteUrl,
   metadataFromSeo,
@@ -35,16 +36,55 @@ async function getCollection(slug: string) {
   }
 }
 
+async function getCollectionSeoVariables(
+  collection: NonNullable<Awaited<ReturnType<typeof getCollection>>>,
+) {
+  try {
+    const products = await productApi.getAll({
+      ...getSeoCollectionProductFilters(collection),
+      page: 1,
+      limit: 1,
+      sortBy: "price_asc",
+    });
+
+    return {
+      name: collection.name,
+      productCount: products.meta.total,
+      minPrice: products.data[0]?.price,
+    };
+  } catch (error) {
+    console.error(
+      `Failed to resolve SEO variables for collection ${collection.slug}:`,
+      error,
+    );
+
+    return {
+      name: collection.name,
+      productCount: null,
+      minPrice: null,
+    };
+  }
+}
+
 export async function generateMetadata({ params }: CollectionPageProps): Promise<Metadata> {
   const { slug } = await params;
   const collection = await getCollection(slug);
   if (!collection) return {};
 
-  const title = collection.seoTitle || collection.name;
-  const description =
-    collection.seoDescription ||
+  const variables = await getCollectionSeoVariables(collection);
+  const fallbackDescription =
     htmlToPlainText(collection.description || "") ||
     "Подборка товаров Prime Electronics";
+  const title = resolveSeoText({
+    manual: collection.seoTitle,
+    fallbackTitle: collection.name,
+    variables,
+  });
+  const description = resolveSeoText({
+    manual: collection.seoDescription,
+    defaultValue: fallbackDescription,
+    variables,
+  });
 
   return metadataFromSeo(
     { title, description },
