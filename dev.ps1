@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $ComposeFile = Join-Path $Root "docker-compose.dev.yml"
 $SetupScript = Join-Path $Root "setup-dev.ps1"
+$LocalAdminScript = Join-Path $Root "local-admin.js"
 $BackendDir = Join-Path $Root "ecommerce-backend"
 $FrontendDir = Join-Path $Root "e-commerce"
 $AdminDir = Join-Path $Root "e-commerce-admin"
@@ -46,6 +47,31 @@ function Wait-ForPort([int]$Port, [string]$Name, [int]$TimeoutSeconds = 90) {
     while ((Get-Date) -lt $deadline) {
         if (Test-TcpPort $Port) {
             Write-Host "$Name is listening on port $Port." -ForegroundColor Green
+            return $true
+        }
+        Start-Sleep -Seconds 1
+    }
+    return $false
+}
+
+function Test-PostgresReady {
+    $oldPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & docker exec prime-local-postgres pg_isready -U prime -d prime_local 1>$null 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    } finally {
+        $ErrorActionPreference = $oldPreference
+    }
+}
+
+function Wait-ForPostgres([int]$TimeoutSeconds = 120) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-PostgresReady) {
+            Write-Host "Local PostgreSQL is ready." -ForegroundColor Green
             return $true
         }
         Start-Sleep -Seconds 1
@@ -114,6 +140,21 @@ Write-Step "Starting PostgreSQL and Redis"
 & docker compose -f $ComposeFile up -d postgres redis
 if ($LASTEXITCODE -ne 0) {
     Fail "Docker services failed to start."
+}
+
+Write-Step "Waiting for local PostgreSQL"
+if (-not (Wait-ForPostgres)) {
+    Fail "Local PostgreSQL did not become ready within 120 seconds."
+}
+
+if (-not (Test-Path -LiteralPath $LocalAdminScript -PathType Leaf)) {
+    Fail "local-admin.js not found in repository root. Run git pull and try again."
+}
+
+Write-Step "Preparing local admin account"
+& node $LocalAdminScript
+if ($LASTEXITCODE -ne 0) {
+    Fail "Local admin account could not be prepared."
 }
 
 Write-Step "Starting PRIME applications"
@@ -190,6 +231,10 @@ Write-Host "PRIME local environment is running:" -ForegroundColor Green
 Write-Host "  Site:    http://localhost:3000"
 Write-Host "  Admin:   http://localhost:3001"
 Write-Host "  Swagger: $BackendUrl/docs"
+Write-Host ""
+Write-Host "Local admin:" -ForegroundColor Green
+Write-Host "  Email:    admin.local@prime.test"
+Write-Host "  Password: PrimeLocal!2026"
 Write-Host ""
 Write-Host "The frontend and admin are pinned to the LOCAL API, not production." -ForegroundColor DarkGray
 
