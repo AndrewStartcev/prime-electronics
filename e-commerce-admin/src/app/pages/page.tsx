@@ -204,7 +204,7 @@ export default function PagesBuilderPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h1 className="text-2xl font-semibold">Страницы</h1><p className="mt-1 text-sm text-text-secondary-black">Визуальный конструктор по принципу ACF Flexible Content: добавляйте готовые блоки и меняйте их порядок.</p></div>
+        <h1 className="text-2xl font-semibold">Страницы</h1>
         <Button type="button" onClick={createNew}><Plus className="mr-2 h-4 w-4" />Новая страница</Button>
       </div>
 
