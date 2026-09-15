@@ -19,9 +19,11 @@ import {
   UpdateStaticPageSeoDto,
   UpsertSeoCollectionDto,
   UpsertSeoTagTileDto,
+  UpsertStaticPageDto,
 } from './dto';
 import { SeoService } from './seo.service';
 import { SeoTagTileService } from './seo-tag-tile.service';
+import { StaticPageBuilderService } from './static-page-builder.service';
 
 @ApiTags('SEO')
 @Controller('seo')
@@ -29,6 +31,7 @@ export class SeoController {
   constructor(
     private readonly seoService: SeoService,
     private readonly seoTagTileService: SeoTagTileService,
+    private readonly staticPageBuilderService: StaticPageBuilderService,
   ) {}
 
   @Public()
@@ -159,6 +162,37 @@ export class SeoController {
   @ApiOperation({ summary: 'Upsert static page SEO record' })
   updateStaticPage(@Body() dto: UpdateStaticPageSeoDto) {
     return this.seoService.updateStaticPage(dto);
+  }
+
+  @Public()
+  @Get('page-builder')
+  @ApiOperation({ summary: 'Get rendered static page builder data by path' })
+  findBuilderPage(@Query('path') path = '/') {
+    return this.staticPageBuilderService.findPublicPage(path);
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('admin/pages')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List visual static pages (Admin)' })
+  listBuilderPages() {
+    return this.staticPageBuilderService.listAdminPages();
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('admin/pages')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create or update a visual static page (Admin)' })
+  upsertBuilderPage(@Body() dto: UpsertStaticPageDto) {
+    return this.staticPageBuilderService.upsertPage(dto);
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete('admin/pages')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a visual static page (Admin)' })
+  deleteBuilderPage(@Query('path') path: string) {
+    return this.staticPageBuilderService.removePage(path);
   }
 
   @UseGuards(AdminGuard)
