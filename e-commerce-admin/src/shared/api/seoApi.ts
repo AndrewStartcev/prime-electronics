@@ -50,6 +50,39 @@ export interface SeoCollection {
   _count?: { tagTiles: number };
 }
 
+export interface SeoTagTileCategory {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+export interface SeoTagTile {
+  id: string;
+  title: string;
+  image?: string | null;
+  /** Legacy first category kept by the backend for backwards compatibility. */
+  categoryId?: string | null;
+  categoryIds?: string[];
+  collectionId?: string | null;
+  url?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  category?: SeoTagTileCategory | null;
+  categories?: SeoTagTileCategory[];
+  collection?: { id: string; name: string; slug: string; isActive: boolean } | null;
+}
+
+export interface UpsertSeoTagTileDto {
+  title: string;
+  image?: string | null;
+  categoryId?: string | null;
+  categoryIds?: string[];
+  collectionId?: string | null;
+  url?: string | null;
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
 export interface UpsertSeoCollectionDto {
   name: string;
   slug: string;
@@ -65,29 +98,6 @@ export interface UpsertSeoCollectionDto {
   seoTitle?: string | null;
   seoDescription?: string | null;
   seoH1?: string | null;
-  isActive?: boolean;
-  sortOrder?: number;
-}
-
-export interface SeoTagTile {
-  id: string;
-  title: string;
-  image?: string | null;
-  categoryId?: string | null;
-  collectionId?: string | null;
-  url?: string | null;
-  isActive: boolean;
-  sortOrder: number;
-  category?: { id: string; title: string; slug: string } | null;
-  collection?: { id: string; name: string; slug: string; isActive: boolean } | null;
-}
-
-export interface UpsertSeoTagTileDto {
-  title: string;
-  image?: string | null;
-  categoryId?: string | null;
-  collectionId?: string | null;
-  url?: string | null;
   isActive?: boolean;
   sortOrder?: number;
 }
