@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 type Params = Promise<{ slug: string[] }>;
 
 function toPath(slug: string[]) {
-  return `/${slug.map((part) => encodeURIComponent(part)).join("/")}`;
+  return `/${slug.join("/")}`;
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
