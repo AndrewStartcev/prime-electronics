@@ -646,6 +646,16 @@ model StaticPageSeo {
   @@index([isActive])
 }
 
+model StaticPageContent {
+  id        String   @id @default(uuid())
+  path      String   @unique
+  blocks    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([path])
+}
+
 model RobotsSettings {
   id        String   @id
   content   String
