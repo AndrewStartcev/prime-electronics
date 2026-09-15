@@ -21,6 +21,7 @@ import type {
   UpsertSeoCollectionDto,
   UpsertSeoTagTileDto,
 } from "@/shared/api";
+import { apiClient } from "@/shared/api/client";
 import {
   useActiveBrands,
   useCategoryTree,
@@ -38,6 +39,7 @@ import {
 import { flattenCategoryTree } from "@/shared/lib";
 
 type AttributeRow = { name: string; value: string };
+type CatalogAttributes = Record<string, string[]>;
 
 type CollectionFormState = {
   name: string;
@@ -61,7 +63,7 @@ type CollectionFormState = {
 type TagTileFormState = {
   title: string;
   image: string;
-  categoryId: string;
+  categoryIds: string[];
   collectionId: string;
   url: string;
   isActive: boolean;
@@ -90,7 +92,7 @@ const emptyCollectionForm = (): CollectionFormState => ({
 const emptyTagTileForm = (): TagTileFormState => ({
   title: "",
   image: "",
-  categoryId: "",
+  categoryIds: [],
   collectionId: "",
   url: "",
   isActive: true,
@@ -120,7 +122,6 @@ function rowsToAttributes(rows: AttributeRow[]): Record<string, string[]> {
     const name = row.name.trim();
     const value = row.value.trim();
     if (!name || !value) return result;
-
     const values = result[name] || [];
     if (!values.includes(value)) values.push(value);
     result[name] = values;
@@ -153,7 +154,12 @@ function tagTileToForm(tile: SeoTagTile): TagTileFormState {
   return {
     title: tile.title,
     image: tile.image || "",
-    categoryId: tile.categoryId || "",
+    categoryIds:
+      tile.categoryIds?.length
+        ? tile.categoryIds
+        : tile.categoryId
+          ? [tile.categoryId]
+          : [],
     collectionId: tile.collectionId || "",
     url: tile.url || "",
     isActive: tile.isActive,
@@ -171,16 +177,60 @@ function toNullableNumber(value: string) {
 function AttributeFiltersEditor({
   value,
   onChange,
+  categoryId,
+  brandIds,
 }: {
   value: AttributeRow[];
   onChange: (value: AttributeRow[]) => void;
+  categoryId: string;
+  brandIds: string[];
 }) {
+  const [available, setAvailable] = useState<CatalogAttributes>({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+
+    apiClient
+      .get("/products/filters", {
+        params: {
+          categoryId: categoryId || undefined,
+          brandIds: brandIds.length ? brandIds.join(",") : undefined,
+        },
+      })
+      .then((response) => {
+        if (!cancelled) setAvailable(response.data?.attributes || {});
+      })
+      .catch(() => {
+        if (!cancelled) setAvailable({});
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryId, brandIds]);
+
+  const attributeNames = Object.keys(available).sort((a, b) =>
+    a.localeCompare(b, "ru"),
+  );
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-primary-black">
-          Характеристики для фильтра
-        </p>
+        <div>
+          <p className="text-sm font-medium text-primary-black">
+            Характеристики для фильтра
+          </p>
+          <p className="text-xs text-text-secondary-black">
+            {isLoading
+              ? "Загружаем характеристики каталога…"
+              : "Список зависит от выбранной категории и брендов."}
+          </p>
+        </div>
         <Button
           type="button"
           size="sm"
@@ -191,45 +241,82 @@ function AttributeFiltersEditor({
           Добавить
         </Button>
       </div>
+
       {value.length === 0 ? (
         <p className="text-sm text-text-secondary-black">
-          Например: Цвет — Черный, Память — 256 ГБ.
+          Выберите существующую характеристику и её значение.
         </p>
       ) : (
         <div className="space-y-2">
-          {value.map((row, index) => (
-            <div key={`${index}-${row.name}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-              <Input
-                aria-label="Название характеристики"
-                placeholder="Характеристика"
-                value={row.name}
-                onChange={(event) => {
-                  const next = [...value];
-                  next[index] = { ...row, name: event.target.value };
-                  onChange(next);
-                }}
-              />
-              <Input
-                aria-label="Значение характеристики"
-                placeholder="Значение"
-                value={row.value}
-                onChange={(event) => {
-                  const next = [...value];
-                  next[index] = { ...row, value: event.target.value };
-                  onChange(next);
-                }}
-              />
-              <button
-                type="button"
-                aria-label="Удалить характеристику"
-                title="Удалить характеристику"
-                onClick={() => onChange(value.filter((_, rowIndex) => rowIndex !== index))}
-                className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-text-secondary-black transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+          {value.map((row, index) => {
+            const names = row.name && !attributeNames.includes(row.name)
+              ? [row.name, ...attributeNames]
+              : attributeNames;
+            const availableValues = available[row.name] || [];
+            const values = row.value && !availableValues.includes(row.value)
+              ? [row.value, ...availableValues]
+              : availableValues;
+            const staleName = Boolean(row.name && !available[row.name]);
+            const staleValue = Boolean(
+              row.value && available[row.name] && !availableValues.includes(row.value),
+            );
+
+            return (
+              <div
+                key={`${index}-${row.name}-${row.value}`}
+                className="grid grid-cols-[1fr_1fr_auto] gap-2"
               >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-          ))}
+                <select
+                  aria-label="Название характеристики"
+                  value={row.name}
+                  onChange={(event) => {
+                    const next = [...value];
+                    next[index] = { name: event.target.value, value: "" };
+                    onChange(next);
+                  }}
+                  className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-primary-black focus:border-primary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange/20"
+                >
+                  <option value="">Выберите характеристику</option>
+                  {names.map((name) => (
+                    <option key={name} value={name}>
+                      {name}{staleName && name === row.name ? " (сохранена ранее)" : ""}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  aria-label="Значение характеристики"
+                  value={row.value}
+                  disabled={!row.name}
+                  onChange={(event) => {
+                    const next = [...value];
+                    next[index] = { ...row, value: event.target.value };
+                    onChange(next);
+                  }}
+                  className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm text-primary-black disabled:bg-gray-50 disabled:text-gray-400 focus:border-primary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange/20"
+                >
+                  <option value="">Выберите значение</option>
+                  {values.map((item) => (
+                    <option key={item} value={item}>
+                      {item}{staleValue && item === row.value ? " (сохранено ранее)" : ""}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  aria-label="Удалить характеристику"
+                  title="Удалить характеристику"
+                  onClick={() =>
+                    onChange(value.filter((_, rowIndex) => rowIndex !== index))
+                  }
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-text-secondary-black transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -245,23 +332,22 @@ function RobotsEditor() {
     if (data?.content !== undefined) setContent(data.content);
   }, [data?.content]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    try {
-      await updateRobots.mutateAsync(content);
-      toast.success("robots.txt сохранен");
-    } catch {
-      toast.error("Не удалось сохранить robots.txt");
-    }
-  };
-
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>robots.txt</CardTitle>
-      </CardHeader>
+      <CardHeader><CardTitle>robots.txt</CardTitle></CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            try {
+              await updateRobots.mutateAsync(content);
+              toast.success("robots.txt сохранен");
+            } catch {
+              toast.error("Не удалось сохранить robots.txt");
+            }
+          }}
+        >
           <Textarea
             label="Правила для поисковых роботов"
             rows={12}
@@ -301,11 +387,6 @@ function CollectionsEditor() {
   const reset = () => {
     setEditingId(null);
     setForm(emptyCollectionForm());
-  };
-
-  const startEditing = (collection: SeoCollection) => {
-    setEditingId(collection.id);
-    setForm(collectionToForm(collection));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -348,17 +429,6 @@ function CollectionsEditor() {
     }
   };
 
-  const handleDelete = async (collection: SeoCollection) => {
-    if (!window.confirm(`Удалить подборку «${collection.name}»?`)) return;
-    try {
-      await deleteCollection.mutateAsync(collection.id);
-      if (editingId === collection.id) reset();
-      toast.success("Подборка удалена");
-    } catch {
-      toast.error("Не удалось удалить подборку");
-    }
-  };
-
   const seoFields: SeoFieldsValue = {
     seoTitle: form.seoTitle,
     seoDescription: form.seoDescription,
@@ -380,8 +450,7 @@ function CollectionsEditor() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-sm text-primary-orange hover:text-primary-black"
         >
-          Открыть подборки
-          <ExternalLink className="h-4 w-4" aria-hidden="true" />
+          Открыть подборки <ExternalLink className="h-4 w-4" aria-hidden="true" />
         </a>
       </div>
 
@@ -421,24 +490,12 @@ function CollectionsEditor() {
                 >
                   <option value="">Все категории</option>
                   {categoryOptions.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.label}
-                    </option>
+                    <option key={category.id} value={category.id}>{category.label}</option>
                   ))}
                 </select>
               </label>
-              <Input
-                label="Цена от"
-                inputMode="decimal"
-                value={form.minPrice}
-                onChange={(event) => setForm({ ...form, minPrice: event.target.value })}
-              />
-              <Input
-                label="Цена до"
-                inputMode="decimal"
-                value={form.maxPrice}
-                onChange={(event) => setForm({ ...form, maxPrice: event.target.value })}
-              />
+              <Input label="Цена от" inputMode="decimal" value={form.minPrice} onChange={(event) => setForm({ ...form, minPrice: event.target.value })} />
+              <Input label="Цена до" inputMode="decimal" value={form.maxPrice} onChange={(event) => setForm({ ...form, maxPrice: event.target.value })} />
             </div>
 
             <div className="space-y-2">
@@ -470,30 +527,18 @@ function CollectionsEditor() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <label className="flex items-center gap-2 self-end text-sm text-primary-black">
-                <input
-                  type="checkbox"
-                  checked={form.inStock}
-                  onChange={(event) => setForm({ ...form, inStock: event.target.checked })}
-                  className="h-4 w-4 accent-primary-orange"
-                />
+                <input type="checkbox" checked={form.inStock} onChange={(event) => setForm({ ...form, inStock: event.target.checked })} className="h-4 w-4 accent-primary-orange" />
                 Только в наличии
               </label>
               <label className="flex items-center gap-2 self-end text-sm text-primary-black">
-                <input
-                  type="checkbox"
-                  checked={form.isOnSale}
-                  onChange={(event) => setForm({ ...form, isOnSale: event.target.checked })}
-                  className="h-4 w-4 accent-primary-orange"
-                />
+                <input type="checkbox" checked={form.isOnSale} onChange={(event) => setForm({ ...form, isOnSale: event.target.checked })} className="h-4 w-4 accent-primary-orange" />
                 Только со скидкой
               </label>
               <label className="flex flex-col gap-1.5 text-sm font-medium text-primary-black">
                 Сортировка
                 <select
                   value={form.sortBy}
-                  onChange={(event) =>
-                    setForm({ ...form, sortBy: event.target.value as SeoCollectionSortBy })
-                  }
+                  onChange={(event) => setForm({ ...form, sortBy: event.target.value as SeoCollectionSortBy })}
                   className="rounded-xl border border-gray-200 bg-white px-3 py-3 font-normal text-primary-black focus:border-primary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange/20"
                 >
                   <option value="popularity">По популярности</option>
@@ -507,48 +552,30 @@ function CollectionsEditor() {
 
             <AttributeFiltersEditor
               value={form.attributes}
+              categoryId={form.categoryId}
+              brandIds={form.brandIds}
               onChange={(attributes) => setForm({ ...form, attributes })}
             />
 
             <Textarea
               label="Описание под товарами (HTML)"
               helperText="Можно вставить HTML-код. На странице подборки текст выводится после товарной сетки и пагинации."
-              placeholder="<h2>О подборке</h2><p>Текст описания...</p>"
               rows={8}
               className="min-h-40 font-mono !resize-y"
               value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
             />
-            <SeoFields
-              value={seoFields}
-              onChange={(fields) => setForm({ ...form, ...fields })}
-            />
+            <SeoFields value={seoFields} onChange={(fields) => setForm({ ...form, ...fields })} />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Input
-                label="Порядок"
-                type="number"
-                value={form.sortOrder}
-                onChange={(event) => setForm({ ...form, sortOrder: event.target.value })}
-              />
+              <Input label="Порядок" type="number" value={form.sortOrder} onChange={(event) => setForm({ ...form, sortOrder: event.target.value })} />
               <label className="flex items-center gap-2 self-end pb-3 text-sm text-primary-black">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
-                  className="h-4 w-4 accent-primary-orange"
-                />
+                <input type="checkbox" checked={form.isActive} onChange={(event) => setForm({ ...form, isActive: event.target.checked })} className="h-4 w-4 accent-primary-orange" />
                 Подборка активна
               </label>
               <div className="flex items-end justify-end gap-2">
-                {editingId && (
-                  <Button type="button" variant="outline" onClick={reset}>
-                    Отмена
-                  </Button>
-                )}
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "Сохранение..." : editingId ? "Сохранить" : "Создать подборку"}
-                </Button>
+                {editingId && <Button type="button" variant="outline" onClick={reset}>Отмена</Button>}
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Сохранение..." : editingId ? "Сохранить" : "Создать подборку"}</Button>
               </div>
             </div>
           </form>
@@ -558,48 +585,19 @@ function CollectionsEditor() {
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {collections.length === 0 ? (
           <p className="p-4 text-sm text-text-secondary-black">Подборок пока нет.</p>
-        ) : (
-          collections.map((collection) => (
-            <div key={collection.id} className="flex items-center justify-between gap-4 border-b border-gray-100 p-4 last:border-b-0">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-primary-black">{collection.name}</p>
-                <p className="mt-0.5 text-sm text-text-secondary-black">
-                  /collections/{collection.slug} · {collection.isActive ? "активна" : "черновик"}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <a
-                  href={`https://prime-electronics.ru/collections/${collection.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg p-2 text-text-secondary-black transition-colors hover:bg-secondary-gray hover:text-primary-black"
-                  aria-label={`Открыть подборку ${collection.name}`}
-                  title="Открыть"
-                >
-                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => startEditing(collection)}
-                  className="rounded-lg p-2 text-text-secondary-black transition-colors hover:bg-secondary-gray hover:text-primary-black"
-                  aria-label={`Редактировать подборку ${collection.name}`}
-                  title="Редактировать"
-                >
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(collection)}
-                  className="rounded-lg p-2 text-text-secondary-black transition-colors hover:bg-red-50 hover:text-red-600"
-                  aria-label={`Удалить подборку ${collection.name}`}
-                  title="Удалить"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
+        ) : collections.map((collection) => (
+          <div key={collection.id} className="flex items-center justify-between gap-4 border-b border-gray-100 p-4 last:border-b-0">
+            <div className="min-w-0">
+              <p className="truncate font-medium text-primary-black">{collection.name}</p>
+              <p className="mt-0.5 text-sm text-text-secondary-black">/collections/{collection.slug} · {collection.isActive ? "активна" : "черновик"}</p>
             </div>
-          ))
-        )}
+            <div className="flex shrink-0 items-center gap-2">
+              <a href={`https://prime-electronics.ru/collections/${collection.slug}`} target="_blank" rel="noopener noreferrer" className="rounded-lg p-2 text-text-secondary-black hover:bg-secondary-gray" title="Открыть"><ExternalLink className="h-4 w-4" /></a>
+              <button type="button" onClick={() => { setEditingId(collection.id); setForm(collectionToForm(collection)); }} className="rounded-lg p-2 text-text-secondary-black hover:bg-secondary-gray" title="Редактировать"><Pencil className="h-4 w-4" /></button>
+              <button type="button" onClick={async () => { if (!window.confirm(`Удалить подборку «${collection.name}»?`)) return; try { await deleteCollection.mutateAsync(collection.id); if (editingId === collection.id) reset(); toast.success("Подборка удалена"); } catch { toast.error("Не удалось удалить подборку"); } }} className="rounded-lg p-2 text-text-secondary-black hover:bg-red-50 hover:text-red-600" title="Удалить"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -614,11 +612,8 @@ function TagTilesEditor() {
   const deleteTile = useDeleteSeoTagTile();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TagTileFormState>(emptyTagTileForm);
+  const categoryOptions = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
   const isSaving = createTile.isPending || updateTile.isPending;
-  const categoryOptions = useMemo(
-    () => flattenCategoryTree(categoryTree),
-    [categoryTree],
-  );
 
   const reset = () => {
     setEditingId(null);
@@ -627,15 +622,16 @@ function TagTilesEditor() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!form.title.trim() || !form.categoryId || (!form.collectionId && !form.url.trim())) {
-      toast.error("Укажите название, категорию размещения и ссылку либо SEO-подборку");
+    if (!form.title.trim() || form.categoryIds.length === 0 || (!form.collectionId && !form.url.trim())) {
+      toast.error("Укажите название, минимум одну категорию и ссылку либо SEO-подборку");
       return;
     }
 
     const payload: UpsertSeoTagTileDto = {
       title: form.title.trim(),
       image: form.image.trim() || null,
-      categoryId: form.categoryId,
+      categoryIds: form.categoryIds,
+      categoryId: form.categoryIds[0] || null,
       collectionId: form.collectionId || null,
       url: form.url.trim() || null,
       isActive: form.isActive,
@@ -656,44 +652,25 @@ function TagTilesEditor() {
     }
   };
 
-  const handleDelete = async (tile: SeoTagTile) => {
-    if (!window.confirm(`Удалить плитку «${tile.title}»?`)) return;
-    try {
-      await deleteTile.mutateAsync(tile.id);
-      if (editingId === tile.id) reset();
-      toast.success("Плитка удалена");
-    } catch {
-      toast.error("Не удалось удалить плитку");
-    }
-  };
-
   return (
     <section className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold text-primary-black">Плитки тегов</h2>
         <p className="mt-1 text-sm text-text-secondary-black">
-          Теги выводятся облаком в выбранной категории или подкатегории и ведут на SEO-подборку либо нужный URL.
+          Одну плитку можно показывать сразу в нескольких категориях и подкатегориях.
         </p>
       </div>
+
       <Card>
-        <CardHeader>
-          <CardTitle>{editingId ? "Редактировать плитку" : "Новая плитка"}</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>{editingId ? "Редактировать плитку" : "Новая плитка"}</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Input
-                label="Название"
-                value={form.title}
-                onChange={(event) => setForm({ ...form, title: event.target.value })}
-              />
-              <Input
-                label="Изображение (URL, необязательно)"
-                value={form.image}
-                onChange={(event) => setForm({ ...form, image: event.target.value })}
-              />
+              <Input label="Название" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+              <Input label="Изображение (URL, необязательно)" value={form.image} onChange={(event) => setForm({ ...form, image: event.target.value })} />
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-1.5 text-sm font-medium text-primary-black">
                 SEO-подборка
                 <select
@@ -704,66 +681,60 @@ function TagTilesEditor() {
                     setForm({
                       ...form,
                       collectionId,
-                      categoryId: collection?.categoryId || form.categoryId,
+                      categoryIds:
+                        form.categoryIds.length === 0 && collection?.categoryId
+                          ? [collection.categoryId]
+                          : form.categoryIds,
                     });
                   }}
                   className="rounded-xl border border-gray-200 bg-white px-3 py-3 font-normal text-primary-black focus:border-primary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange/20"
                 >
                   <option value="">Не выбрана</option>
-                  {collections.map((collection) => (
-                    <option key={collection.id} value={collection.id}>
-                      {collection.name}
-                    </option>
-                  ))}
+                  {collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
                 </select>
               </label>
-              <label className="flex flex-col gap-1.5 text-sm font-medium text-primary-black">
-                Где показывать тег
-                <select
-                  value={form.categoryId}
-                  onChange={(event) => setForm({ ...form, categoryId: event.target.value })}
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-3 font-normal text-primary-black focus:border-primary-orange focus:outline-none focus:ring-2 focus:ring-primary-orange/20"
-                >
-                  <option value="">Выберите категорию</option>
-                  {categoryOptions.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Input
-                label="Или свой URL"
-                placeholder="/catalog/apple или https://..."
-                value={form.url}
-                onChange={(event) => setForm({ ...form, url: event.target.value })}
-              />
+              <Input label="Или свой URL" placeholder="/catalog/apple или https://..." value={form.url} onChange={(event) => setForm({ ...form, url: event.target.value })} />
             </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-primary-black">Где показывать тег</p>
+                <span className="text-xs text-text-secondary-black">Выбрано: {form.categoryIds.length}</span>
+              </div>
+              <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3">
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+                  {categoryOptions.map((category) => {
+                    const checked = form.categoryIds.includes(category.id);
+                    return (
+                      <label key={category.id} className="flex items-start gap-2 text-sm text-primary-black">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => setForm({
+                            ...form,
+                            categoryIds: checked
+                              ? form.categoryIds.filter((id) => id !== category.id)
+                              : [...form.categoryIds, category.id],
+                          })}
+                          className="mt-0.5 h-4 w-4 accent-primary-orange"
+                        />
+                        <span>{category.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Input
-                label="Порядок"
-                type="number"
-                value={form.sortOrder}
-                onChange={(event) => setForm({ ...form, sortOrder: event.target.value })}
-              />
+              <Input label="Порядок" type="number" value={form.sortOrder} onChange={(event) => setForm({ ...form, sortOrder: event.target.value })} />
               <label className="flex items-center gap-2 self-end pb-3 text-sm text-primary-black">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
-                  className="h-4 w-4 accent-primary-orange"
-                />
+                <input type="checkbox" checked={form.isActive} onChange={(event) => setForm({ ...form, isActive: event.target.checked })} className="h-4 w-4 accent-primary-orange" />
                 Плитка активна
               </label>
               <div className="flex items-end justify-end gap-2">
-                {editingId && (
-                  <Button type="button" variant="outline" onClick={reset}>
-                    Отмена
-                  </Button>
-                )}
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "Сохранение..." : editingId ? "Сохранить" : "Создать плитку"}
-                </Button>
+                {editingId && <Button type="button" variant="outline" onClick={reset}>Отмена</Button>}
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Сохранение..." : editingId ? "Сохранить" : "Создать плитку"}</Button>
               </div>
             </div>
           </form>
@@ -773,44 +744,28 @@ function TagTilesEditor() {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {tiles.length === 0 ? (
           <p className="text-sm text-text-secondary-black">Плиток пока нет.</p>
-        ) : (
-          tiles.map((tile) => (
+        ) : tiles.map((tile) => {
+          const categories = tile.categories?.length
+            ? tile.categories
+            : tile.category
+              ? [tile.category]
+              : [];
+          return (
             <div key={tile.id} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4">
               <div className="min-w-0">
                 <p className="truncate font-medium text-primary-black">{tile.title}</p>
-                <p className="mt-0.5 truncate text-sm text-text-secondary-black">
-                  {tile.collection ? `/collections/${tile.collection.slug}` : tile.url || "Ссылка не выбрана"}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-text-secondary-black">
-                  {tile.category ? `Показывается: ${tile.category.title}` : "Категория размещения не выбрана"}
+                <p className="mt-0.5 truncate text-sm text-text-secondary-black">{tile.collection ? `/collections/${tile.collection.slug}` : tile.url || "Ссылка не выбрана"}</p>
+                <p className="mt-0.5 text-xs text-text-secondary-black">
+                  {categories.length ? `Показывается: ${categories.map((item) => item.title).join(", ")}` : "Категории размещения не выбраны"}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingId(tile.id);
-                    setForm(tagTileToForm(tile));
-                  }}
-                  className="rounded-lg p-2 text-text-secondary-black transition-colors hover:bg-secondary-gray hover:text-primary-black"
-                  aria-label={`Редактировать плитку ${tile.title}`}
-                  title="Редактировать"
-                >
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(tile)}
-                  className="rounded-lg p-2 text-text-secondary-black transition-colors hover:bg-red-50 hover:text-red-600"
-                  aria-label={`Удалить плитку ${tile.title}`}
-                  title="Удалить"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
+                <button type="button" onClick={() => { setEditingId(tile.id); setForm(tagTileToForm(tile)); }} className="rounded-lg p-2 text-text-secondary-black hover:bg-secondary-gray" title="Редактировать"><Pencil className="h-4 w-4" /></button>
+                <button type="button" onClick={async () => { if (!window.confirm(`Удалить плитку «${tile.title}»?`)) return; try { await deleteTile.mutateAsync(tile.id); if (editingId === tile.id) reset(); toast.success("Плитка удалена"); } catch { toast.error("Не удалось удалить плитку"); } }} className="rounded-lg p-2 text-text-secondary-black hover:bg-red-50 hover:text-red-600" title="Удалить"><Trash2 className="h-4 w-4" /></button>
               </div>
             </div>
-          ))
-        )}
+          );
+        })}
       </div>
     </section>
   );
