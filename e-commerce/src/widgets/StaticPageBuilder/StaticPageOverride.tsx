@@ -34,7 +34,7 @@ export function StaticPageOverride({ children }: { children: ReactNode }) {
     seoApi
       .getBuilderPage(pathname)
       .then((result) => {
-        if (!cancelled) setPage(result?.blocks?.length ? result : null);
+        if (!cancelled) setPage(result || null);
       })
       .catch(() => {
         if (!cancelled) setPage(null);
@@ -48,7 +48,15 @@ export function StaticPageOverride({ children }: { children: ReactNode }) {
     };
   }, [pathname]);
 
-  if (resolvedPath === pathname && page) {
+  if (resolvedPath === pathname && page?.isActive === false) {
+    return (
+      <main className="mx-auto min-h-[50vh] max-w-[1200px] px-4 py-16 md:px-10">
+        <h1 className="text-3xl font-medium text-[#131314]">Страница недоступна</h1>
+      </main>
+    );
+  }
+
+  if (resolvedPath === pathname && page?.blocks?.length) {
     return <StaticPageRenderer page={page} />;
   }
 
