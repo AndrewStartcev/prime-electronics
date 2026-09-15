@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   Button,
@@ -122,10 +123,7 @@ function TemplateForm({ template }: { template: SeoTemplate }) {
             placeholder="[Название]"
             value={formData.h1Template}
             onChange={(event) =>
-              setFormData({
-                ...formData,
-                h1Template: event.target.value,
-              })
+              setFormData({ ...formData, h1Template: event.target.value })
             }
           />
           <Button
@@ -238,33 +236,39 @@ function StaticPageForm({ page }: { page: StaticPageSeo }) {
 }
 
 export default function SeoPage() {
-  const { data: templates = [], isLoading: templatesLoading } =
-    useSeoTemplates();
-  const { data: staticPages = [], isLoading: staticPagesLoading } =
-    useStaticPageSeoList();
+  const { data: templates = [], isLoading: templatesLoading } = useSeoTemplates();
+  const { data: staticPages = [], isLoading: staticPagesLoading } = useStaticPageSeoList();
 
   return (
     <div className="space-y-4 lg:space-y-6">
-      <div>
-        <h1 className="text-xl lg:text-2xl font-semibold text-primary-black">
-          SEO
-        </h1>
-        <p className="text-text-secondary-black mt-1 text-sm lg:text-base">
-          Шаблоны мета-тегов, H1 и ручные настройки для служебных страниц
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl lg:text-2xl font-semibold text-primary-black">SEO</h1>
+          <p className="text-text-secondary-black mt-1 text-sm lg:text-base">
+            Шаблоны мета-тегов, H1 и ручные настройки для служебных страниц
+          </p>
+        </div>
+        <Link href="/pages">
+          <Button type="button" variant="primary">Конструктор страниц</Button>
+        </Link>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Переменные шаблонов</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Конструктор статических страниц</CardTitle></CardHeader>
+        <CardContent className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-text-secondary-black">
+            Контент страниц собирается из готовых блоков. SEO-поля остаются общими с этим разделом.
+          </p>
+          <Link href="/pages"><Button type="button" variant="outline">Открыть конструктор</Button></Link>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Переменные шаблонов</CardTitle></CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
             {variableHints.map((variable) => (
-              <code
-                key={variable}
-                className="rounded-lg bg-secondary-gray px-3 py-2 text-sm text-primary-black"
-              >
+              <code key={variable} className="rounded-lg bg-secondary-gray px-3 py-2 text-sm text-primary-black">
                 {variable}
               </code>
             ))}
@@ -275,39 +279,21 @@ export default function SeoPage() {
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-primary-black">Шаблоны</h2>
         {templatesLoading ? (
-          <Card>
-            <CardContent>
-              <p className="text-sm text-text-secondary-black">
-                Загрузка шаблонов...
-              </p>
-            </CardContent>
-          </Card>
+          <Card><CardContent><p className="text-sm text-text-secondary-black">Загрузка шаблонов...</p></CardContent></Card>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-            {templates.map((template) => (
-              <TemplateForm key={template.type} template={template} />
-            ))}
+            {templates.map((template) => <TemplateForm key={template.type} template={template} />)}
           </div>
         )}
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-primary-black">
-          Статические страницы
-        </h2>
+        <h2 className="text-lg font-semibold text-primary-black">Статические страницы</h2>
         {staticPagesLoading ? (
-          <Card>
-            <CardContent>
-              <p className="text-sm text-text-secondary-black">
-                Загрузка страниц...
-              </p>
-            </CardContent>
-          </Card>
+          <Card><CardContent><p className="text-sm text-text-secondary-black">Загрузка страниц...</p></CardContent></Card>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-            {staticPages.map((page) => (
-              <StaticPageForm key={page.path} page={page} />
-            ))}
+            {staticPages.map((page) => <StaticPageForm key={page.path} page={page} />)}
           </div>
         )}
       </section>
