@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
   }
 
   const url = request.nextUrl.clone();
-  url.pathname = "/_managed-static";
+  url.pathname = "/managed-static-page";
   url.searchParams.set("path", pathname);
   return NextResponse.rewrite(url);
 }
