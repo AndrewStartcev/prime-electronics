@@ -7,6 +7,8 @@ const MANAGED_STATIC_PATHS = new Set([
   "/contacts",
   "/promotions",
   "/trade-in",
+  "/privacy",
+  "/cookies",
 ]);
 
 export function proxy(request: NextRequest) {
@@ -29,5 +31,7 @@ export const config = {
     "/contacts",
     "/promotions",
     "/trade-in",
+    "/privacy",
+    "/cookies",
   ],
 };
