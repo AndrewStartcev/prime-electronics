@@ -37,6 +37,14 @@ export type {
   UpsertSeoTagTileDto,
 } from "./seoApi";
 
+export { pageBuilderApi } from "./pageBuilderApi";
+export type {
+  StaticPageBlockType,
+  StaticPageBlock,
+  StaticBuilderPage,
+  UpsertStaticBuilderPageDto,
+} from "./pageBuilderApi";
+
 export { ordersApi } from "./ordersApi";
 export type {
   Order,
