@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import {memo, useRef, useState} from "react";
 import { cn } from "@/shared/lib/utils";
 import { ProductDetail } from "../model";
 import { useTabs } from "@/shared/hooks";
@@ -122,11 +122,21 @@ const SpecCell = ({
 
 SpecCell.displayName = "SpecCell";
 
+const MAX_SPECS_COUNT = 5;
+
 // Specifications Tab - Two columns like in Figma design (single column on mobile)
-const SpecsTab = memo(
+export const SpecsTab = memo(
   ({ specifications }: { specifications: ProductDetail["specifications"] }) => {
+    const [specsExpanded, setSpecsExpanded] = useState<boolean>(false);
+    const visibleSpecifications = specsExpanded ? specifications : specifications.slice(0, MAX_SPECS_COUNT);
+    const specsRef = useRef<HTMLParagraphElement>(null)
+
+    const desktopRowsLength =
+      specifications.length <= 10 || specsExpanded
+        ? Math.ceil(visibleSpecifications.length / 2)
+        : 5
     const desktopRows = Array.from(
-      { length: Math.ceil(specifications.length / 2) },
+      { length: desktopRowsLength },
       (_, index) => [
         specifications[index * 2],
         specifications[index * 2 + 1],
@@ -134,10 +144,14 @@ const SpecsTab = memo(
     );
 
     return (
-      <>
+      <div className="space-y-[6px]">
+        <p ref={specsRef} className="font-medium text-[20px] md:text-[24px] xl:text-[30px] text-[#131314]">
+          Характеристики
+        </p>
+
         {/* Mobile: Single column */}
         <div className="grid grid-cols-1 lg:hidden">
-          {specifications.map((spec, index) => (
+          {visibleSpecifications.map((spec, index) => (
             <SpecRow
               key={index}
               label={spec.label}
@@ -151,7 +165,7 @@ const SpecsTab = memo(
           {desktopRows.map(([leftSpec, rightSpec], index) => (
             <div
               key={index}
-              className="grid grid-cols-2 gap-x-[36px] xl:gap-x-[56px] 2xl:gap-x-[80px] border-b border-[rgba(19,19,20,0.08)]"
+              className="grid grid-cols-2 gap-x-[36px] xl:gap-x-[56px] 2xl:gap-x-[80px] border-b border-[rgba(19,19,20,0.08)] last:border-0"
             >
               <SpecCell label={leftSpec.label} value={leftSpec.value} />
               {rightSpec ? (
@@ -162,7 +176,17 @@ const SpecsTab = memo(
             </div>
           ))}
         </div>
-      </>
+
+        <button
+          className="w-full border-2 border-[#131314] px-[28px] py-[14px] rounded-[60px] font-medium text-lg text-[#131314] hover:bg-[rgba(19,19,20,0.05)] transition-colors whitespace-nowrap"
+          onClick={() => {
+            setSpecsExpanded(prev => !prev)
+            specsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+        >
+          {specsExpanded ? "Свернуть характеристики" : "Показать характеристики"}
+        </button>
+      </div>
     );
   },
 );

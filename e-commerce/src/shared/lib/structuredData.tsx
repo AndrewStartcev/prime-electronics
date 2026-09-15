@@ -155,8 +155,8 @@ export function buildStoreStructuredData(): JsonLdValue {
         "Saturday",
         "Sunday",
       ],
-      opens: "11:00",
-      closes: "21:00",
+      opens: "10:00",
+      closes: "20:00",
     },
     sameAs: [
       "https://vk.ru/club238735026",
