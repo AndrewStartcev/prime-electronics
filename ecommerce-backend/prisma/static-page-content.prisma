@@ -1,0 +1,9 @@
+model StaticPageContent {
+  id        String   @id @default(uuid())
+  path      String   @unique
+  blocks    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([path])
+}
