@@ -22,6 +22,32 @@ export interface StaticPageSeo {
   isActive: boolean;
 }
 
+export type StaticPageBlockType =
+  | "hero"
+  | "richText"
+  | "imageText"
+  | "cards"
+  | "stats"
+  | "steps"
+  | "table"
+  | "info"
+  | "cta"
+  | "map"
+  | "contactForm"
+  | "promotionGrid"
+  | "productGrid";
+
+export interface StaticPageBlock {
+  type: StaticPageBlockType;
+  version: number;
+  data: Record<string, any>;
+}
+
+export interface StaticBuilderPage extends StaticPageSeo {
+  blocks: StaticPageBlock[];
+  updatedAt?: string | null;
+}
+
 export type SeoCollectionSortBy =
   | "popularity"
   | "price_asc"
@@ -97,6 +123,14 @@ export const seoApi = {
     const response = await apiClient.get<StaticPageSeo>("/seo/static-page", {
       params: { path },
     });
+    return response.data;
+  },
+
+  getBuilderPage: async (path: string): Promise<StaticBuilderPage | null> => {
+    const response = await apiClient.get<StaticBuilderPage | null>(
+      "/seo/page-builder",
+      { params: { path } },
+    );
     return response.data;
   },
 
