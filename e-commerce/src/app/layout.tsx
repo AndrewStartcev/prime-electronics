@@ -11,7 +11,6 @@ import {
   YandexMetrikaCounter,
   YandexMetrikaPageViews,
 } from "@/widgets/YandexMetrika";
-import { StaticPageOverride } from "@/widgets/StaticPageBuilder/StaticPageOverride";
 import { Providers } from "./providers";
 import { ScreenSizeIndicator } from "@/shared/ui/ScreenSizeIndicator";
 import { CartNotification } from "@/shared/ui/CartNotification";
@@ -52,7 +51,7 @@ export default function RootLayout({
           <BasketNavigationFallback />
           <ScreenSizeIndicator />
           <Header />
-          <StaticPageOverride>{children}</StaticPageOverride>
+          {children}
           <Footer />
           {/* Spacer so content isn't hidden behind fixed mobile nav */}
           <div className="h-[64px] md:hidden" />
