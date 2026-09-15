@@ -109,6 +109,7 @@ model Category {
   products  ProductCategory[]
   seoCollections SeoCollection[]
   seoTagTiles SeoTagTile[]
+  seoTagTileLinks SeoTagTileCategory[]
 
   @@index([parentId])
   @@index([slug])
@@ -170,6 +171,7 @@ model Product {
   relatedProducts ProductRelation[] @relation("SourceRelatedProducts")
   relatedFromProducts ProductRelation[] @relation("TargetRelatedProducts")
   blogProductBlockItems BlogProductBlockItem[]
+  aiDescriptionDraft AiDescriptionDraft?
 
   @@index([brandId])
   @@index([variantGroupId])
@@ -299,8 +301,8 @@ model Order {
   userId       String?
   sessionId    String?
   total        Decimal     @db.Decimal(10, 2)
-  discount     Decimal     @default(0) @db.Decimal(10, 2)
-  finalTotal   Decimal     @db.Decimal(10, 2)
+  discount     Decimal     @default(0) @db.Decimal(12, 2)
+  finalTotal   Decimal     @db.Decimal(12, 2)
   email        String?
   phone        String?
   buyer        String?
@@ -316,8 +318,8 @@ model Order {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   couponId     String?
-  bonusUsed    Decimal     @default(0) @db.Decimal(10, 2)
-  bonusEarned  Decimal     @default(0) @db.Decimal(10, 2)
+  bonusUsed    Decimal     @default(0) @db.Decimal(12, 2)
+  bonusEarned  Decimal     @default(0) @db.Decimal(12, 2)
   bonusAccrualScheduledAt DateTime?
   bonusAccrualAvailableAt DateTime?
   bonusAccruedAt DateTime?
@@ -377,7 +379,7 @@ model Bonus {
   id          Int       @id @default(autoincrement())
   userId      String
   orderId     Int?
-  amount      Decimal   @db.Decimal(10, 2)
+  amount      Decimal   @db.Decimal(12, 2)
   type        BonusType
   description String?
   createdAt   DateTime  @default(now())
@@ -469,7 +471,7 @@ model Coupon {
   id         String     @id @default(uuid())
   code       String     @unique
   type       CouponType
-  value      Decimal    @db.Decimal(10, 2)
+  value      Decimal    @db.Decimal(12, 2)
   validFrom  DateTime
   validTo    DateTime
   usageLimit Int        @default(0)
@@ -576,6 +578,48 @@ model BlogProductBlockItem {
   @@index([productId])
 }
 
+model AiDescriptionSettings {
+  id              String   @id
+  encryptedApiKey String?
+  model           String   @default("gpt-4.1")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+}
+
+model AiDescriptionBatch {
+  id          String   @id
+  status      String   @default("PROCESSING")
+  total       Int      @default(0)
+  processed   Int      @default(0)
+  success     Int      @default(0)
+  failed      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  completedAt DateTime?
+
+  drafts AiDescriptionDraft[]
+
+  @@index([status, createdAt])
+}
+
+model AiDescriptionDraft {
+  id        String   @id
+  productId String   @unique
+  batchId   String?
+  text      String?
+  status    String   @default("PENDING")
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  appliedAt DateTime?
+
+  product Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  batch   AiDescriptionBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@index([status, updatedAt])
+  @@index([batchId])
+}
+
 model SeoTemplate {
   id                  String      @id @default(uuid())
   type                SeoPageType @unique
@@ -649,12 +693,24 @@ model SeoTagTile {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  category   Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  collection SeoCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  category      Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  collection    SeoCollection?        @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  categoryLinks SeoTagTileCategory[]
 
   @@index([categoryId])
   @@index([collectionId])
   @@index([isActive, sortOrder])
+}
+
+model SeoTagTileCategory {
+  tagTileId String
+  categoryId String
+
+  tagTile  SeoTagTile @relation(fields: [tagTileId], references: [id], onDelete: Cascade)
+  category Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([tagTileId, categoryId])
+  @@index([categoryId])
 }
 
 model Favorite {
