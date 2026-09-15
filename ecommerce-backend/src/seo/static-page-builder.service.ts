@@ -95,7 +95,7 @@ export class StaticPageBuilderService {
       this.prisma.staticPageContent.findUnique({ where: { path } }),
     ]);
 
-    if (!content || seo?.isActive === false) return null;
+    if (!content) return null;
 
     return {
       id: seo?.id || content.id,
@@ -141,10 +141,14 @@ export class StaticPageBuilderService {
 
   async removePage(pathValue: string) {
     const path = this.normalizePath(pathValue);
-    await this.prisma.$transaction([
-      this.prisma.staticPageContent.deleteMany({ where: { path } }),
-      this.prisma.staticPageSeo.deleteMany({ where: { path } }),
-    ]);
-    return { path };
+    const content = await this.prisma.staticPageContent.findUnique({ where: { path } });
+    if (!content) return { path };
+
+    await this.prisma.staticPageSeo.upsert({
+      where: { path },
+      create: { path, name: path, title: path, isActive: false },
+      update: { isActive: false },
+    });
+    return { path, disabled: true };
   }
 }
