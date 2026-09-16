@@ -4,7 +4,10 @@ import { RedisService } from '../../shared/services/redis.service';
 @Injectable()
 export class BlogCacheService {
   private readonly cacheLogger = new Logger(BlogCacheService.name);
-  private readonly CACHE_PREFIX = 'blog';
+  // Version the cache namespace so deploys that change the public blog payload
+  // do not reuse stale Redis objects created by the previous application version.
+  // v2 includes productBlocks in public article responses.
+  private readonly CACHE_PREFIX = 'blog:v2';
   private readonly CACHE_TTL = 3600; // 1 hour maximum
 
   constructor(private readonly redisService: RedisService) {}
