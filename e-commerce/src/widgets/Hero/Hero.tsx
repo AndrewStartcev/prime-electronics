@@ -16,13 +16,14 @@ export const Hero = () => {
   return (
     <section className="relative w-full bg-black overflow-hidden">
       {/* Background Video */}
+      {/* Background Video */}
       <div className="absolute inset-0 rounded-none lg:rounded-bl-[20px] lg:rounded-br-[20px] overflow-hidden">
         <video
           autoPlay
           loop
           muted
           playsInline
-          className="absolute inset-0 w-full h-full object-cover object-center"
+          className="absolute inset-0 w-full h-full object-cover"
         >
           <source src="/video.mp4" type="video/mp4" />
         </video>
