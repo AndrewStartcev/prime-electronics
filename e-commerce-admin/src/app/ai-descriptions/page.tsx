@@ -3,7 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from "@/shared/ui";
-import { aiDescriptionsApi, type AiDescriptionBatch, type AiDescriptionDraft, type AiDescriptionSettings } from "@/shared/api";
+import {
+  aiDescriptionsApi,
+  type AiBatchProductStatus,
+  type AiDescriptionBatch,
+  type AiDescriptionDraft,
+  type AiDescriptionSettings,
+} from "@/shared/api";
+
+type GenerationStatusState = Record<AiBatchProductStatus, boolean>;
+
+const DEFAULT_GENERATION_STATUSES: GenerationStatusState = {
+  ACTIVE: true,
+  INACTIVE: false,
+  COMING_SOON: false,
+};
+
+const GENERATION_STATUS_OPTIONS: Array<{
+  value: AiBatchProductStatus;
+  label: string;
+}> = [
+  { value: "ACTIVE", label: "Активные" },
+  { value: "INACTIVE", label: "Неактивные" },
+  { value: "COMING_SOON", label: "Скоро в продаже" },
+];
 
 export default function AiDescriptionsPage() {
   const [settings, setSettings] = useState<AiDescriptionSettings | null>(null);
@@ -11,6 +34,7 @@ export default function AiDescriptionsPage() {
   const [model, setModel] = useState("gpt-4.1");
   const [batch, setBatch] = useState<AiDescriptionBatch | null>(null);
   const [drafts, setDrafts] = useState<AiDescriptionDraft[]>([]);
+  const [generationStatuses, setGenerationStatuses] = useState<GenerationStatusState>(DEFAULT_GENERATION_STATUSES);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -47,6 +71,17 @@ export default function AiDescriptionsPage() {
     return Math.round((batch.processed / batch.total) * 100);
   }, [batch]);
 
+  const selectedGenerationStatuses = useMemo(
+    () =>
+      GENERATION_STATUS_OPTIONS.filter((option) => generationStatuses[option.value]).map(
+        (option) => option.value,
+      ),
+    [generationStatuses],
+  );
+
+  const allGenerationStatusesSelected =
+    selectedGenerationStatuses.length === GENERATION_STATUS_OPTIONS.length;
+
   const saveSettings = async () => {
     setBusy("settings");
     setMessage("");
@@ -66,13 +101,30 @@ export default function AiDescriptionsPage() {
   };
 
   const startBatch = async () => {
-    if (!window.confirm("Запустить генерацию черновиков описаний для всех товаров? Текущие описания не будут изменены.")) return;
+    if (selectedGenerationStatuses.length === 0) {
+      setMessage("Выберите хотя бы один статус товаров для генерации");
+      return;
+    }
+
+    const selectedLabels = GENERATION_STATUS_OPTIONS.filter((option) =>
+      selectedGenerationStatuses.includes(option.value),
+    )
+      .map((option) => option.label.toLowerCase())
+      .join(", ");
+
+    if (
+      !window.confirm(
+        `Запустить генерацию черновиков для товаров: ${selectedLabels}? Текущие описания не будут изменены.`,
+      )
+    )
+      return;
+
     setBusy("batch");
     setMessage("");
     try {
-      const next = await aiDescriptionsApi.startBatch();
+      const next = await aiDescriptionsApi.startBatch(selectedGenerationStatuses);
       setBatch(next);
-      setMessage("Массовая генерация запущена");
+      setMessage(`Массовая генерация запущена. Товаров в очереди: ${next.total}`);
     } catch (error: any) {
       setMessage(error?.response?.data?.message || "Не удалось запустить генерацию");
     } finally {
@@ -113,6 +165,22 @@ export default function AiDescriptionsPage() {
     }
   };
 
+  const toggleAllGenerationStatuses = () => {
+    const nextValue = !allGenerationStatusesSelected;
+    setGenerationStatuses({
+      ACTIVE: nextValue,
+      INACTIVE: nextValue,
+      COMING_SOON: nextValue,
+    });
+  };
+
+  const toggleGenerationStatus = (status: AiBatchProductStatus) => {
+    setGenerationStatuses((previous) => ({
+      ...previous,
+      [status]: !previous[status],
+    }));
+  };
+
   if (loading) return <div className="p-6">Загрузка...</div>;
 
   return (
@@ -143,6 +211,33 @@ export default function AiDescriptionsPage() {
       <Card>
         <CardHeader><CardTitle>Массовая генерация</CardTitle></CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-3 rounded-lg border border-border-gray bg-secondary-gray/40 p-4">
+            <div>
+              <div className="text-sm font-medium">Какие товары отправлять в генерацию</div>
+              <div className="mt-1 text-xs text-text-secondary-black">Удалённые товары не включаются никогда. По умолчанию выбраны только активные.</div>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={allGenerationStatusesSelected}
+                  onChange={toggleAllGenerationStatuses}
+                />
+                Все
+              </label>
+              {GENERATION_STATUS_OPTIONS.map((option) => (
+                <label key={option.value} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={generationStatuses[option.value]}
+                    onChange={() => toggleGenerationStatus(option.value)}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
           {batch ? (
             <>
               <div className="flex flex-wrap gap-5 text-sm">
@@ -153,7 +248,18 @@ export default function AiDescriptionsPage() {
             </>
           ) : <p className="text-sm text-text-secondary-black">Генерация ещё не запускалась.</p>}
           <div className="flex flex-wrap gap-3">
-            <Button type="button" variant="primary" onClick={startBatch} disabled={busy === "batch" || batch?.status === "PROCESSING"}>{busy === "batch" ? "Запуск..." : "Сгенерировать для всех товаров"}</Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={startBatch}
+              disabled={
+                busy === "batch" ||
+                batch?.status === "PROCESSING" ||
+                selectedGenerationStatuses.length === 0
+              }
+            >
+              {busy === "batch" ? "Запуск..." : "Сгенерировать выбранные товары"}
+            </Button>
             <Button type="button" variant="outline" onClick={applyAll} disabled={busy === "apply-all"}>Применить все готовые</Button>
           </div>
         </CardContent>
