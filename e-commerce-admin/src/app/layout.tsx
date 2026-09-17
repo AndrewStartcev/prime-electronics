@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthLayout } from "@/shared/ui/AuthLayout";
 import { Providers } from "./providers";
-
-const inter = Inter({
-  subsets: ["latin", "cyrillic"],
-  weight: ["300", "400", "500", "600"],
-});
 
 export const metadata: Metadata = {
   title: "E-Commerce Admin",
@@ -33,7 +27,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body
-        className={`${inter.className} antialiased bg-secondary-gray`}
+        className="antialiased bg-secondary-gray"
         suppressHydrationWarning
       >
         <Providers>
