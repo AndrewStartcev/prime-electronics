@@ -1,32 +1,16 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { seoApi } from "@/shared/api/seoApi";
-import { StaticPageRenderer } from "@/widgets/StaticPageBuilder/StaticPageRenderer";
+import {
+  buildManagedPageMetadata,
+  renderManagedPage,
+} from "@/widgets/StaticPageBuilder/managedPage";
 
 export const dynamic = "force-dynamic";
-
 const PAGE_PATH = "/about";
 
-async function getPage() {
-  return seoApi.getBuilderPage(PAGE_PATH).catch(() => null);
+export function generateMetadata(): Promise<Metadata> {
+  return buildManagedPageMetadata(PAGE_PATH, "О компании");
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  const page = await getPage();
-  if (!page || !page.isActive) return {};
-
-  return {
-    title: page.seoTitle || page.title || page.name || "О компании",
-    description: page.seoDescription || undefined,
-  };
-}
-
-export default async function AboutPage() {
-  const page = await getPage();
-
-  if (!page || !page.isActive || !page.blocks?.length) {
-    notFound();
-  }
-
-  return <StaticPageRenderer page={page} />;
+export default function AboutPage() {
+  return renderManagedPage(PAGE_PATH);
 }
