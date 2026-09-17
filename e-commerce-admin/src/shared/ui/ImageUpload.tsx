@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { uploadImage } from "../api/upload";
+import { apiClient } from "../api/client";
 import { toast } from "sonner";
 
 interface ImageUploadProps {
@@ -9,6 +10,46 @@ interface ImageUploadProps {
   onChange: (url: string) => void;
   label?: string;
   className?: string;
+}
+
+function getApiOrigin(): string {
+  const baseUrl = String(apiClient.defaults.baseURL || "").trim();
+  if (!baseUrl) return "";
+
+  try {
+    return new URL(baseUrl).origin;
+  } catch {
+    return baseUrl.replace(/\/api\/?$/i, "").replace(/\/$/, "");
+  }
+}
+
+function resolveImageUrl(value: string): string {
+  const url = value.trim();
+  if (!url) return "";
+
+  if (/^(data:|blob:)/i.test(url)) return url;
+  if (url.startsWith("//")) return `https:${url}`;
+
+  const apiOrigin = getApiOrigin();
+
+  if (/^https?:\/\//i.test(url)) {
+    try {
+      const parsed = new URL(url);
+      const isLocalBackendUrl =
+        parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+
+      if (isLocalBackendUrl && apiOrigin) {
+        return `${apiOrigin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      }
+    } catch {
+      return url;
+    }
+
+    return url;
+  }
+
+  if (!apiOrigin) return url;
+  return `${apiOrigin}/${url.replace(/^\/+/, "")}`;
 }
 
 export function ImageUpload({
@@ -19,19 +60,18 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const previewUrl = resolveImageUrl(value);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error("Неверный формат файла. Поддерживаются: JPG, PNG, WEBP");
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Размер файла не должен превышать 5MB");
       return;
@@ -48,7 +88,6 @@ export function ImageUpload({
       toast.error("Ошибка при загрузке изображения");
     } finally {
       setIsUploading(false);
-      // Reset input
       e.target.value = "";
     }
   };
@@ -60,7 +99,6 @@ export function ImageUpload({
       </label>
 
       <div className="space-y-3">
-        {/* Upload Button */}
         <div className="flex gap-2">
           <input
             ref={fileInputRef}
@@ -103,11 +141,10 @@ export function ImageUpload({
           )}
         </div>
 
-        {/* Preview */}
         {value && (
           <div className="w-full h-48 bg-secondary-gray rounded-lg overflow-hidden">
             <img
-              src={value}
+              src={previewUrl}
               alt="Preview"
               className="w-full h-full object-cover"
             />
