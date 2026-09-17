@@ -32,6 +32,8 @@ export interface AiDescriptionBatch {
   completedAt?: string | null;
 }
 
+export type AiBatchProductStatus = "ACTIVE" | "INACTIVE" | "COMING_SOON";
+
 export const aiDescriptionsApi = {
   getSettings: async (): Promise<AiDescriptionSettings> => {
     const { data } = await apiClient.get("/ai-descriptions/settings");
@@ -57,8 +59,8 @@ export const aiDescriptionsApi = {
     const { data } = await apiClient.get("/ai-descriptions/drafts", { params });
     return data as { data: AiDescriptionDraft[]; meta: { page: number; limit: number; total: number } };
   },
-  startBatch: async (): Promise<AiDescriptionBatch> => {
-    const { data } = await apiClient.post("/ai-descriptions/batches");
+  startBatch: async (statuses: AiBatchProductStatus[]): Promise<AiDescriptionBatch> => {
+    const { data } = await apiClient.post("/ai-descriptions/batches", { statuses });
     return data;
   },
   getLatestBatch: async (): Promise<AiDescriptionBatch | null> => {
