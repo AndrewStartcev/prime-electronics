@@ -3,7 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } from "@/shared/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  ImageUpload,
+  Input,
+  RichTextEditor,
+  Textarea,
+} from "@/shared/ui";
 import {
   pageBuilderApi,
   type StaticBuilderPage,
@@ -84,6 +94,15 @@ function StringField({ label, value, onChange, multiline = false }: { label: str
   return <Input label={label} value={String(value || "")} onChange={(event) => onChange(event.target.value)} />;
 }
 
+function HtmlField({ label, value, onChange }: { label: string; value: any; onChange: (value: string) => void }) {
+  return (
+    <div className="space-y-2">
+      <div className="text-sm font-medium text-primary-black">{label}</div>
+      <RichTextEditor content={String(value || "")} onChange={onChange} />
+    </div>
+  );
+}
+
 function ItemsEditor({ items, onChange, mode }: { items: any[]; onChange: (items: any[]) => void; mode: "cards" | "stats" | "steps" }) {
   const add = () => {
     const item = mode === "stats" ? { value: "100+", label: "Показатель" } : { title: mode === "steps" ? `Шаг ${items.length + 1}` : "Карточка", text: "Описание" };
@@ -112,20 +131,123 @@ function ItemsEditor({ items, onChange, mode }: { items: any[]; onChange: (items
   );
 }
 
+function TableEditor({ columns: rawColumns, rows: rawRows, onChange }: { columns: string[]; rows: string[][]; onChange: (columns: string[], rows: string[][]) => void }) {
+  const columns = rawColumns?.length ? rawColumns : ["Колонка 1"];
+  const rows = Array.isArray(rawRows) ? rawRows : [];
+
+  const normalizedRows = rows.map((row) => columns.map((_, index) => row?.[index] || ""));
+
+  const updateColumn = (index: number, value: string) => {
+    const next = [...columns];
+    next[index] = value;
+    onChange(next, normalizedRows);
+  };
+
+  const addColumn = () => {
+    const nextColumns = [...columns, `Колонка ${columns.length + 1}`];
+    const nextRows = normalizedRows.map((row) => [...row, ""]);
+    onChange(nextColumns, nextRows);
+  };
+
+  const removeColumn = (index: number) => {
+    if (columns.length <= 1) return;
+    const nextColumns = columns.filter((_, columnIndex) => columnIndex !== index);
+    const nextRows = normalizedRows.map((row) => row.filter((_, columnIndex) => columnIndex !== index));
+    onChange(nextColumns, nextRows);
+  };
+
+  const updateCell = (rowIndex: number, columnIndex: number, value: string) => {
+    const nextRows = normalizedRows.map((row) => [...row]);
+    nextRows[rowIndex][columnIndex] = value;
+    onChange(columns, nextRows);
+  };
+
+  const addRow = () => onChange(columns, [...normalizedRows, columns.map(() => "")]);
+  const removeRow = (rowIndex: number) => onChange(columns, normalizedRows.filter((_, index) => index !== rowIndex));
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-medium">Таблица</span>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={addColumn}><Plus className="mr-1 h-4 w-4" />Колонка</Button>
+          <Button type="button" size="sm" variant="outline" onClick={addRow}><Plus className="mr-1 h-4 w-4" />Строка</Button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <div className="min-w-max p-3">
+          <div className="mb-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(180px, 1fr)) 40px` }}>
+            {columns.map((column, columnIndex) => (
+              <div key={`column-${columnIndex}`} className="flex gap-1">
+                <Input
+                  aria-label={`Колонка ${columnIndex + 1}`}
+                  value={column}
+                  onChange={(event) => updateColumn(columnIndex, event.target.value)}
+                />
+                {columns.length > 1 && (
+                  <button
+                    type="button"
+                    aria-label={`Удалить колонку ${columnIndex + 1}`}
+                    className="flex h-10 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 hover:bg-red-50 hover:text-red-600"
+                    onClick={() => removeColumn(columnIndex)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <div />
+          </div>
+
+          <div className="space-y-2">
+            {normalizedRows.map((row, rowIndex) => (
+              <div key={`row-${rowIndex}`} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(180px, 1fr)) 40px` }}>
+                {columns.map((_, columnIndex) => (
+                  <Input
+                    key={`cell-${rowIndex}-${columnIndex}`}
+                    aria-label={`Строка ${rowIndex + 1}, колонка ${columnIndex + 1}`}
+                    value={row[columnIndex] || ""}
+                    onChange={(event) => updateCell(rowIndex, columnIndex, event.target.value)}
+                  />
+                ))}
+                <button
+                  type="button"
+                  aria-label={`Удалить строку ${rowIndex + 1}`}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 hover:bg-red-50 hover:text-red-600"
+                  onClick={() => removeRow(rowIndex)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {normalizedRows.length === 0 && (
+            <div className="py-4 text-center text-sm text-text-secondary-black">Добавьте первую строку таблицы</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BlockEditor({ block, onChange }: { block: StaticPageBlock; onChange: (block: StaticPageBlock) => void }) {
   const data = block.data || {};
   const set = (key: string, value: any) => onChange({ ...block, data: { ...data, [key]: value } });
+  const setTable = (columns: string[], rows: string[][]) => onChange({ ...block, data: { ...data, columns, rows } });
+
   return (
     <div className="space-y-4">
       <BlockPreview block={block} />
       {block.type === "hero" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><StringField label="Подзаголовок" value={data.subtitle} onChange={(v) => set("subtitle", v)} multiline /></>}
-      {block.type === "richText" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><StringField label="HTML / текст" value={data.html} onChange={(v) => set("html", v)} multiline /></>}
-      {block.type === "imageText" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><StringField label="HTML / текст" value={data.html} onChange={(v) => set("html", v)} multiline /><div className="grid gap-3 md:grid-cols-2"><StringField label="URL изображения" value={data.image} onChange={(v) => set("image", v)} /><StringField label="Alt" value={data.imageAlt} onChange={(v) => set("imageAlt", v)} /></div><label className="block text-sm font-medium">Сторона изображения<select className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 font-normal" value={data.imageSide || "right"} onChange={(e) => set("imageSide", e.target.value)}><option value="right">Справа</option><option value="left">Слева</option></select></label></>}
+      {block.type === "richText" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><HtmlField label="Текст" value={data.html} onChange={(v) => set("html", v)} /></>}
+      {block.type === "imageText" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><HtmlField label="Текст" value={data.html} onChange={(v) => set("html", v)} /><ImageUpload label="Изображение" value={data.image || ""} onChange={(v) => set("image", v)} /><StringField label="Alt" value={data.imageAlt} onChange={(v) => set("imageAlt", v)} /><label className="block text-sm font-medium">Сторона изображения<select className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 font-normal" value={data.imageSide || "right"} onChange={(e) => set("imageSide", e.target.value)}><option value="right">Справа</option><option value="left">Слева</option></select></label></>}
       {block.type === "cards" && <><StringField label="Заголовок секции" value={data.title} onChange={(v) => set("title", v)} /><ItemsEditor mode="cards" items={data.items || []} onChange={(v) => set("items", v)} /></>}
       {block.type === "stats" && <><StringField label="Заголовок секции" value={data.title} onChange={(v) => set("title", v)} /><ItemsEditor mode="stats" items={data.items || []} onChange={(v) => set("items", v)} /></>}
       {block.type === "steps" && <><StringField label="Заголовок секции" value={data.title} onChange={(v) => set("title", v)} /><ItemsEditor mode="steps" items={data.items || []} onChange={(v) => set("items", v)} /></>}
-      {block.type === "table" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><StringField label="Колонки — по одной в строке" value={(data.columns || []).join("\n")} onChange={(v) => set("columns", v.split("\n").filter(Boolean))} multiline /><StringField label="Строки — значения через |" value={(data.rows || []).map((row: string[]) => row.join(" | ")).join("\n")} onChange={(v) => set("rows", v.split("\n").filter(Boolean).map((row) => row.split("|").map((cell) => cell.trim())))} multiline /></>}
-      {block.type === "info" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><StringField label="HTML / текст" value={data.html} onChange={(v) => set("html", v)} multiline /></>}
+      {block.type === "table" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><TableEditor columns={data.columns || []} rows={data.rows || []} onChange={setTable} /></>}
+      {block.type === "info" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><HtmlField label="Текст" value={data.html} onChange={(v) => set("html", v)} /></>}
       {block.type === "cta" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><StringField label="Текст" value={data.text} onChange={(v) => set("text", v)} multiline /><div className="grid gap-3 md:grid-cols-2"><StringField label="Текст кнопки" value={data.buttonText} onChange={(v) => set("buttonText", v)} /><StringField label="Ссылка кнопки" value={data.buttonHref} onChange={(v) => set("buttonHref", v)} /></div></>}
       {block.type === "map" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><StringField label="Поисковый запрос карты" value={data.query} onChange={(v) => set("query", v)} /></>}
       {block.type === "contactForm" && <><StringField label="Заголовок" value={data.title} onChange={(v) => set("title", v)} /><StringField label="Подзаголовок" value={data.subtitle} onChange={(v) => set("subtitle", v)} /></>}
@@ -178,7 +300,16 @@ export default function PagesBuilderPage() {
     if (!path || !draft.name?.trim()) return toast.error("Укажите URL и название страницы");
     setSaving(true);
     try {
-      await pageBuilderApi.save({ ...draft, path });
+      await pageBuilderApi.save({
+        path,
+        name: draft.name,
+        title: draft.title,
+        seoTitle: draft.seoTitle,
+        seoDescription: draft.seoDescription,
+        seoH1: draft.seoH1,
+        isActive: draft.isActive,
+        blocks: draft.blocks,
+      });
       toast.success("Страница сохранена");
       const data = await pageBuilderApi.list();
       setPages(data);
