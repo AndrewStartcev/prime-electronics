@@ -145,9 +145,13 @@ export default function AiDescriptionsPage() {
 
   const regenerate = async (productId: string) => {
     setBusy(`regen:${productId}`);
+    setMessage("");
     try {
       await aiDescriptionsApi.generateProduct(productId);
       await load();
+    } catch (error: any) {
+      setMessage(error?.response?.data?.message || "Не удалось перегенерировать описание");
+      await load().catch(console.error);
     } finally {
       setBusy("");
     }
