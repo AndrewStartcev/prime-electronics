@@ -28,6 +28,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSimEsimDisplay, isSimAttribute } from "../lib/simEsim";
 
 interface ProductCardProps extends Product {
+  comingSoon?: boolean;
   onFavoriteClick?: (id: string) => void;
   onAddToCart?: (id: string) => void;
   className?: string;
@@ -49,6 +50,7 @@ export const ProductCard = memo(
     isNew = false,
     isSale = false,
     isFavorite = false,
+    comingSoon,
     attributes,
     onFavoriteClick,
     onAddToCart,
@@ -345,14 +347,14 @@ export const ProductCard = memo(
           <div className="mt-auto flex flex-col gap-[8px] md:contents md:mt-0">
             <div className="flex w-full items-center justify-between gap-[8px]">
               <div className="flex-1 min-w-0">
-                <Price price={price} />
+                <Price price={price} comingSoon={comingSoon} />
               </div>
               <div className="shrink-0 hidden md:block">
-                <StockStatus inStock={inStock} />
+                <StockStatus inStock={!comingSoon && inStock} />
               </div>
             </div>
             <div className="md:hidden flex flex-col gap-[8px]">
-              <StockStatus inStock={inStock} />
+              <StockStatus inStock={!comingSoon && inStock} />
               <button
                 onClick={handleAddToCart}
                 className={cn(
