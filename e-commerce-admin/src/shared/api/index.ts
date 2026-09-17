@@ -109,6 +109,7 @@ export type {
   AiDescriptionSettings,
   AiDescriptionDraft,
   AiDescriptionBatch,
+  AiBatchProductStatus,
 } from "./aiDescriptionsApi";
 
 export { apiClient as api } from "./client";
