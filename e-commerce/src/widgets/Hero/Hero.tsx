@@ -15,6 +15,20 @@ const quickLinks = [
 export const Hero = () => {
   return (
     <section className="relative w-full bg-black overflow-hidden">
+      {/* Background Video */}
+      <div className="absolute inset-0 rounded-none lg:rounded-bl-[20px] lg:rounded-br-[20px] overflow-hidden">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover object-center"
+        >
+          <source src="/video.mp4" type="video/mp4" />
+        </video>
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-black/75" />
+      </div>
       <div className="max-w-[1920px] mx-auto relative px-[16px] md:px-[24px] lg:px-[40px] xl:px-[60px] 2xl:px-[120px]">
         {/* Desktop layout (lg+) */}
         <div className="hidden lg:flex items-center min-h-[500px] xl:min-h-[620px] 2xl:min-h-[760px] 3xl:min-h-[900px] pt-[32px] xl:pt-[40px] 2xl:pt-[56px]">
