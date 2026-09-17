@@ -128,9 +128,9 @@ function ItemsEditor({ items, onChange, mode, variant }: { items: any[]; onChang
               <Input placeholder="Подпись" value={item.label || ""} onChange={(e) => setItem(index, "label", e.target.value)} />
             </div>
           ) : variant === "promotionFeature" ? (
-            <div className="grid gap-2 md:grid-cols-2">
-              <Input placeholder="Иконка" value={item.icon || ""} onChange={(e) => setItem(index, "icon", e.target.value)} />
+            <div className="space-y-2">
               <Input placeholder="Текст" value={item.text || ""} onChange={(e) => setItem(index, "text", e.target.value)} />
+              <ImageUpload label="Иконка" value={item.icon || ""} onChange={(value) => setItem(index, "icon", value)} />
             </div>
           ) : (
             <>
@@ -139,11 +139,12 @@ function ItemsEditor({ items, onChange, mode, variant }: { items: any[]; onChang
                 <Input placeholder="Заголовок" value={item.title || ""} onChange={(e) => setItem(index, "title", e.target.value)} />
                 <Input placeholder="Описание" value={item.text || ""} onChange={(e) => setItem(index, "text", e.target.value)} />
               </div>
-              {(variant === "iconFeatures" || variant === "warrantyIcons") && <Input placeholder="Иконка / идентификатор" value={item.icon || ""} onChange={(e) => setItem(index, "icon", e.target.value)} />}
-              {variant === "deliveryOptions" && <div className="grid gap-2 md:grid-cols-2"><Input placeholder="Стоимость" value={item.price || ""} onChange={(e) => setItem(index, "price", e.target.value)} /><Input placeholder="Срок" value={item.time || ""} onChange={(e) => setItem(index, "time", e.target.value)} /></div>}
+              {variant === "iconFeatures" && <ImageUpload label="Иконка" value={item.icon || ""} onChange={(value) => setItem(index, "icon", value)} />}
+              {variant === "warrantyIcons" && <Input placeholder="Иконка / идентификатор" value={item.icon || ""} onChange={(e) => setItem(index, "icon", e.target.value)} />}
+              {variant === "deliveryOptions" && <><ImageUpload label="Иконка" value={item.icon || ""} onChange={(value) => setItem(index, "icon", value)} /><div className="grid gap-2 md:grid-cols-2"><Input placeholder="Стоимость" value={item.price || ""} onChange={(e) => setItem(index, "price", e.target.value)} /><Input placeholder="Срок" value={item.time || ""} onChange={(e) => setItem(index, "time", e.target.value)} /></div></>}
               {variant === "contactMethods" && <div className="grid gap-2 md:grid-cols-2"><Input placeholder="Иконка" value={item.icon || ""} onChange={(e) => setItem(index, "icon", e.target.value)} /><Input placeholder="Ссылка" value={item.href || ""} onChange={(e) => setItem(index, "href", e.target.value)} /></div>}
               {variant === "storeInfo" && <div className="grid gap-2 md:grid-cols-2"><Input placeholder="Тип точки" value={item.kind || ""} onChange={(e) => setItem(index, "kind", e.target.value)} /><Input placeholder="Адрес" value={item.address || ""} onChange={(e) => setItem(index, "address", e.target.value)} /><Input placeholder="Метро" value={item.metro || ""} onChange={(e) => setItem(index, "metro", e.target.value)} /><Input placeholder="Телефон" value={item.phone || ""} onChange={(e) => setItem(index, "phone", e.target.value)} /><Input placeholder="Ссылка телефона" value={item.phoneHref || ""} onChange={(e) => setItem(index, "phoneHref", e.target.value)} /><Input placeholder="Режим работы" value={item.workHours || ""} onChange={(e) => setItem(index, "workHours", e.target.value)} /></div>}
-              {variant === "brandLogos" && <Input placeholder="Путь к логотипу" value={item.image || ""} onChange={(e) => setItem(index, "image", e.target.value)} />}
+              {variant === "brandLogos" && <ImageUpload label="Логотип" value={item.image || ""} onChange={(value) => setItem(index, "image", value)} />}
               {variant === "paymentMethods" && <Input placeholder="Иконка" value={item.icon || ""} onChange={(e) => setItem(index, "icon", e.target.value)} />}
             </>
           )}
