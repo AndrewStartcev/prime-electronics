@@ -27,6 +27,8 @@ import {
 } from "@/shared/hooks";
 import { SeoManagement } from "@/widgets/SeoManagement/SeoManagement";
 
+const SHOW_LEGACY_STATIC_PAGE_SEO = false;
+
 const templateLabels: Record<SeoPageType, string> = {
   HOME: "Главная",
   CATEGORY: "Категории каталога",
@@ -287,16 +289,18 @@ export default function SeoPage() {
         )}
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-primary-black">Статические страницы</h2>
-        {staticPagesLoading ? (
-          <Card><CardContent><p className="text-sm text-text-secondary-black">Загрузка страниц...</p></CardContent></Card>
-        ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-            {staticPages.map((page) => <StaticPageForm key={page.path} page={page} />)}
-          </div>
-        )}
-      </section>
+      {SHOW_LEGACY_STATIC_PAGE_SEO && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-primary-black">Статические страницы</h2>
+          {staticPagesLoading ? (
+            <Card><CardContent><p className="text-sm text-text-secondary-black">Загрузка страниц...</p></CardContent></Card>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+              {staticPages.map((page) => <StaticPageForm key={page.path} page={page} />)}
+            </div>
+          )}
+        </section>
+      )}
 
       <SeoManagement />
     </div>
