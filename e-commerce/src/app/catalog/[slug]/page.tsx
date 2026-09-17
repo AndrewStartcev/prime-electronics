@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import {
   categoryApi,
+  getSeoCollectionProductFilters,
   productApi,
   seoApi,
   type CategoryResponse,
@@ -12,6 +13,7 @@ import {
   type SeoTagTile,
 } from "@/shared/api";
 import { shouldKeepBrandContextForCategorySlug } from "@/shared/lib/catalogRouting";
+import { replaceSeoTemplateVariables } from "@/shared/lib/seo";
 import {
   absoluteSiteUrl,
   findSeoTemplate,
@@ -122,10 +124,37 @@ const getCatalogProducts = cache(
   },
 );
 
+const resolveTagTile = async (tile: SeoTagTile): Promise<SeoTagTile> => {
+  if (!tile.collection?.isActive) return tile;
+
+  try {
+    const collection = await seoApi.getCollectionBySlug(tile.collection.slug);
+    const products = await productApi.getAll({
+      ...getSeoCollectionProductFilters(collection),
+      page: 1,
+      limit: 1,
+      sortBy: "price_asc",
+    });
+
+    return {
+      ...tile,
+      title: replaceSeoTemplateVariables(tile.title, {
+        name: collection.name,
+        productCount: products.meta.total,
+        minPrice: products.data[0]?.price,
+      }),
+    };
+  } catch (error) {
+    console.error(`Failed to resolve SEO tag tile ${tile.id}:`, error);
+    return tile;
+  }
+};
+
 const getCategoryTagTiles = cache(
   async (categoryId: string): Promise<SeoTagTile[]> => {
     try {
-      return await seoApi.getTagTiles(categoryId);
+      const tiles = await seoApi.getTagTiles(categoryId);
+      return await Promise.all(tiles.map(resolveTagTile));
     } catch (error) {
       console.error(`Failed to load SEO tags for category ${categoryId}:`, error);
       return [];
