@@ -96,6 +96,8 @@ export function AiProductDescriptionPanel({ productId }: { productId: string }) 
       setDraft(next);
     } catch (error: any) {
       setMessage(error?.response?.data?.message || "Не удалось сгенерировать описание");
+      const latestDraft = await aiDescriptionsApi.getProductDraft(productId).catch(() => null);
+      if (latestDraft) setDraft(latestDraft);
     } finally {
       setBusy("");
     }
