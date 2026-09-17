@@ -1,24 +1,22 @@
 import type { Metadata } from "next";
-import ContactsClient from "./ContactsClient";
-import {
-  generateStaticPageMetadata,
-  resolveStaticPageSeo,
-} from "@/shared/lib/seoMetadata";
 import { JsonLd, buildStoreStructuredData } from "@/shared/lib/structuredData";
+import {
+  buildManagedPageMetadata,
+  renderManagedPage,
+} from "@/widgets/StaticPageBuilder/managedPage";
 
 export const dynamic = "force-dynamic";
+const PAGE_PATH = "/contacts";
 
-export async function generateMetadata(): Promise<Metadata> {
-  return generateStaticPageMetadata("/contacts", "Контакты");
+export function generateMetadata(): Promise<Metadata> {
+  return buildManagedPageMetadata(PAGE_PATH, "Контакты");
 }
 
 export default async function ContactsPage() {
-  const seo = await resolveStaticPageSeo("/contacts", "Контакты");
-
   return (
     <>
       <JsonLd data={buildStoreStructuredData()} />
-      <ContactsClient initialH1={seo.h1} />
+      {await renderManagedPage(PAGE_PATH)}
     </>
   );
 }
