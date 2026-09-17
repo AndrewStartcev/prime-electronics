@@ -109,9 +109,15 @@ export function ImageUpload({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "image/svg+xml",
+    ];
     if (!allowedTypes.includes(file.type)) {
-      toast.error("Неверный формат файла. Поддерживаются: JPG, PNG, WEBP");
+      toast.error("Неверный формат файла. Поддерживаются: JPG, PNG, WEBP, SVG");
       return;
     }
 
@@ -146,7 +152,7 @@ export function ImageUpload({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/svg+xml"
             className="hidden"
             onChange={handleFileChange}
             disabled={isUploading}
@@ -195,7 +201,7 @@ export function ImageUpload({
         )}
 
         <p className="text-xs text-text-secondary-black">
-          Поддерживаемые форматы: JPG, PNG, WEBP. Максимальный размер: 5MB
+          Поддерживаемые форматы: JPG, PNG, WEBP, SVG. Максимальный размер: 5MB
         </p>
       </div>
     </div>
