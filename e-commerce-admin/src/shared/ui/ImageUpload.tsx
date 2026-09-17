@@ -23,6 +23,40 @@ function getApiOrigin(): string {
   }
 }
 
+function getStorefrontOrigin(apiOrigin: string): string {
+  const configured = process.env.NEXT_PUBLIC_STOREFRONT_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+  if (!apiOrigin) return "";
+
+  try {
+    const apiUrl = new URL(apiOrigin);
+
+    if (apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1") {
+      return `${apiUrl.protocol}//${apiUrl.hostname}:3000`;
+    }
+
+    if (apiUrl.hostname === "seo-api.prime-electronics.ru") {
+      return `${apiUrl.protocol}//seo.prime-electronics.ru`;
+    }
+
+    if (apiUrl.hostname === "api.prime-electronics.ru") {
+      return `${apiUrl.protocol}//prime-electronics.ru`;
+    }
+
+    if (apiUrl.hostname.startsWith("seo-api.")) {
+      return `${apiUrl.protocol}//${apiUrl.hostname.replace(/^seo-api\./, "seo.")}`;
+    }
+
+    if (apiUrl.hostname.startsWith("api.")) {
+      return `${apiUrl.protocol}//${apiUrl.hostname.replace(/^api\./, "")}`;
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
 function resolveImageUrl(value: string): string {
   const url = value.trim();
   if (!url) return "";
@@ -31,14 +65,14 @@ function resolveImageUrl(value: string): string {
   if (url.startsWith("//")) return `https:${url}`;
 
   const apiOrigin = getApiOrigin();
+  const storefrontOrigin = getStorefrontOrigin(apiOrigin);
 
   if (/^https?:\/\//i.test(url)) {
     try {
       const parsed = new URL(url);
-      const isLocalBackendUrl =
-        parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+      const isLocalUrl = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
 
-      if (isLocalBackendUrl && apiOrigin) {
+      if (isLocalUrl && parsed.pathname.startsWith("/images/uploads/") && apiOrigin) {
         return `${apiOrigin}${parsed.pathname}${parsed.search}${parsed.hash}`;
       }
     } catch {
@@ -48,8 +82,17 @@ function resolveImageUrl(value: string): string {
     return url;
   }
 
-  if (!apiOrigin) return url;
-  return `${apiOrigin}/${url.replace(/^\/+/, "")}`;
+  const normalizedPath = `/${url.replace(/^\/+/, "")}`;
+
+  if (normalizedPath.startsWith("/images/uploads/") && apiOrigin) {
+    return `${apiOrigin}${normalizedPath}`;
+  }
+
+  if (storefrontOrigin) {
+    return `${storefrontOrigin}${normalizedPath}`;
+  }
+
+  return normalizedPath;
 }
 
 export function ImageUpload({
@@ -146,7 +189,7 @@ export function ImageUpload({
             <img
               src={previewUrl}
               alt="Preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           </div>
         )}
