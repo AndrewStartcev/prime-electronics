@@ -106,102 +106,11 @@ function highlightHtml(value: string) {
     .join("");
 }
 
-const BLOCK_TAGS = new Set([
-  "address",
-  "article",
-  "aside",
-  "blockquote",
-  "div",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "header",
-  "li",
-  "main",
-  "nav",
-  "ol",
-  "p",
-  "section",
-  "table",
-  "tbody",
-  "td",
-  "tfoot",
-  "th",
-  "thead",
-  "tr",
-  "ul",
-]);
+const RAW_ONLY_HTML_PATTERN =
+  /<(?:table|thead|tbody|tfoot|tr|th|td|figure|figcaption|div|section|article|aside|header|footer|main|nav|form|iframe)\b|\s(?:itemscope|itemprop|itemtype|itemid|itemref)(?:\s|=|>)/i;
 
-const RAW_TAGS = new Set(["pre", "script", "style", "textarea"]);
-
-function formatHtml(value: string) {
-  if (typeof document === "undefined" || !value.trim()) return value;
-
-  const template = document.createElement("template");
-  template.innerHTML = value.trim();
-
-  const formatChildren = (parent: ParentNode, depth: number): string[] => {
-    const lines: string[] = [];
-    let inlineBuffer = "";
-
-    const flushInline = () => {
-      const trimmed = inlineBuffer.trim();
-      if (trimmed) lines.push(`${"  ".repeat(depth)}${trimmed}`);
-      inlineBuffer = "";
-    };
-
-    parent.childNodes.forEach((node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        inlineBuffer += node.textContent ?? "";
-        return;
-      }
-
-      if (node.nodeType === Node.COMMENT_NODE) {
-        flushInline();
-        lines.push(`${"  ".repeat(depth)}<!--${node.textContent ?? ""}-->`);
-        return;
-      }
-
-      if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-      const element = node as HTMLElement;
-      const tag = element.tagName.toLowerCase();
-
-      if (!BLOCK_TAGS.has(tag)) {
-        inlineBuffer += element.outerHTML;
-        return;
-      }
-
-      flushInline();
-
-      if (RAW_TAGS.has(tag)) {
-        lines.push(`${"  ".repeat(depth)}${element.outerHTML}`);
-        return;
-      }
-
-      const openingTag = element.outerHTML.slice(
-        0,
-        element.outerHTML.indexOf(">") + 1,
-      );
-      const closingTag = `</${tag}>`;
-
-      lines.push(`${"  ".repeat(depth)}${openingTag}`);
-      lines.push(...formatChildren(element, depth + 1));
-      lines.push(`${"  ".repeat(depth)}${closingTag}`);
-    });
-
-    flushInline();
-    return lines;
-  };
-
-  return formatChildren(template.content, 0).join("\n");
+function requiresRawHtmlMode(value: string) {
+  return RAW_ONLY_HTML_PATTERN.test(value);
 }
 
 export function RichTextEditor({
@@ -325,17 +234,19 @@ export function RichTextEditor({
     if (!editor) return;
 
     if (isHtmlMode) {
+      // Keep the code source canonical. Tiptap intentionally supports only a
+      // subset of HTML and would otherwise drop tables, wrapper elements and
+      // schema.org microdata when we switch back to the visual mode.
       editor.commands.setContent(htmlSource, { emitUpdate: false });
-      onChange(editor.getHTML());
       setIsHtmlMode(false);
       return;
     }
 
-    const formattedHtml = formatHtml(editor.getHTML());
-    setHtmlSource(formattedHtml);
-    onChange(formattedHtml);
+    // Use the value from the form, not editor.getHTML(): the latter is already
+    // normalized by Tiptap and can be lossy for arbitrary HTML.
+    setHtmlSource(content);
     setIsHtmlMode(true);
-  }, [editor, htmlSource, isHtmlMode, onChange]);
+  }, [content, editor, htmlSource, isHtmlMode]);
 
   const handleSourceChange = (value: string) => {
     setHtmlSource(value);
@@ -366,6 +277,8 @@ export function RichTextEditor({
 
   if (!editor) return null;
 
+  const requiresRawMode = requiresRawHtmlMode(htmlSource);
+
   const shellClassName = isFullscreen
     ? "fixed inset-0 z-[100] bg-white flex flex-col"
     : `border border-border-gray rounded-lg overflow-hidden ${className}`;
@@ -373,7 +286,7 @@ export function RichTextEditor({
   return (
     <div className={shellClassName}>
       <div className="bg-secondary-gray border-b border-border-gray p-2 flex flex-wrap items-center gap-1 shrink-0">
-        {!isHtmlMode && (
+        {!isHtmlMode && !requiresRawMode && (
           <>
             <ToolbarButton
               title="Жирный (Ctrl+B)"
@@ -502,7 +415,13 @@ export function RichTextEditor({
 
         {isHtmlMode && (
           <div className="px-2 text-sm font-medium text-slate-600">
-            HTML-код статьи · отступ 2 пробела
+            HTML-код · сохраняется без преобразований
+          </div>
+        )}
+
+        {!isHtmlMode && requiresRawMode && (
+          <div className="px-2 text-sm font-medium text-amber-700">
+            Расширенный HTML защищён · редактируйте через режим кода
           </div>
         )}
 
@@ -568,6 +487,14 @@ export function RichTextEditor({
               isFullscreen ? "h-full" : "h-[420px]"
             }`}
           />
+        </div>
+      ) : requiresRawMode ? (
+        <div
+          className={`bg-amber-50/40 px-4 py-6 text-sm text-slate-700 ${isFullscreen ? "flex-1 min-h-0 overflow-auto" : "min-h-[180px]"}`}
+        >
+          В содержимом есть таблицы, структурная разметка или HTML-контейнеры,
+          которые визуальный редактор может изменить. Исходный HTML сохранён
+          без изменений. Нажмите кнопку кода, чтобы редактировать его.
         </div>
       ) : (
         <div className={`bg-white overflow-auto ${isFullscreen ? "flex-1 min-h-0" : ""}`}>
