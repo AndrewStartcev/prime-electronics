@@ -490,11 +490,16 @@ export function RichTextEditor({
         </div>
       ) : requiresRawMode ? (
         <div
-          className={`bg-amber-50/40 px-4 py-6 text-sm text-slate-700 ${isFullscreen ? "flex-1 min-h-0 overflow-auto" : "min-h-[180px]"}`}
+          className={`bg-white ${isFullscreen ? "flex-1 min-h-0 overflow-auto" : "min-h-[180px]"}`}
         >
-          В содержимом есть таблицы, структурная разметка или HTML-контейнеры,
-          которые визуальный редактор может изменить. Исходный HTML сохранён
-          без изменений. Нажмите кнопку кода, чтобы редактировать его.
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+            Безопасный предпросмотр. Сложный HTML редактируется только в режиме
+            кода, чтобы не потерять таблицы, контейнеры и микроразметку.
+          </div>
+          <div
+            className="rich-html-preview p-4 md:p-6"
+            dangerouslySetInnerHTML={{ __html: htmlSource }}
+          />
         </div>
       ) : (
         <div className={`bg-white overflow-auto ${isFullscreen ? "flex-1 min-h-0" : ""}`}>
