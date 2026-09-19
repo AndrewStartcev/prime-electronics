@@ -158,7 +158,7 @@ function ImageTextBlock({ block }: { block: StaticPageBlock }) {
             {data.title}
           </h2>
           <div
-            className="flex flex-col gap-[16px] text-[16px] font-normal leading-[1.5] text-[rgba(19,19,20,0.6)] md:gap-[18px] md:text-[17px] lg:gap-[20px] lg:text-[18px]"
+            className="rich-html-content flex flex-col gap-[16px] text-[16px] font-normal leading-[1.5] text-[rgba(19,19,20,0.6)] md:gap-[18px] md:text-[17px] lg:gap-[20px] lg:text-[18px]"
             dangerouslySetInnerHTML={{ __html: data.html || "" }}
           />
         </div>
@@ -201,7 +201,7 @@ function ImageTextBlock({ block }: { block: StaticPageBlock }) {
             {data.title}
           </h2>
           <div
-            className="text-[16px] font-normal leading-[1.5] text-[rgba(19,19,20,0.6)] md:text-[17px] lg:text-[18px]"
+            className="rich-html-content text-[16px] font-normal leading-[1.5] text-[rgba(19,19,20,0.6)] md:text-[17px] lg:text-[18px]"
             dangerouslySetInnerHTML={{ __html: data.html || "" }}
           />
           <div className="grid grid-cols-1 gap-[12px] sm:grid-cols-2 md:gap-[14px] lg:gap-[16px]">
@@ -262,7 +262,7 @@ function ImageTextBlock({ block }: { block: StaticPageBlock }) {
               {data.title}
             </h2>
             <div
-              className="mb-[24px] text-[16px] font-normal leading-[1.5] text-[rgba(255,255,255,0.8)] md:mb-[28px] md:text-[17px] lg:mb-[32px] lg:text-[18px]"
+              className="rich-html-content mb-[24px] text-[16px] font-normal leading-[1.5] text-[rgba(255,255,255,0.8)] md:mb-[28px] md:text-[17px] lg:mb-[32px] lg:text-[18px]"
               dangerouslySetInnerHTML={{ __html: data.html || "" }}
             />
             {data.buttonText && data.buttonHref && (
@@ -298,7 +298,7 @@ function ImageTextBlock({ block }: { block: StaticPageBlock }) {
       <div className={imageLeft ? "lg:order-2" : ""}>
         {data.title && <h2 className={sectionTitle}>{data.title}</h2>}
         <div
-          className={`${bodyText} prose max-w-none`}
+          className={`${bodyText} prose rich-html-content max-w-none`}
           dangerouslySetInnerHTML={{ __html: data.html || "" }}
         />
       </div>
@@ -552,7 +552,7 @@ function RichTextBlock({ block }: { block: StaticPageBlock }) {
       <section className="mb-[50px] md:mb-[64px] lg:mb-[80px] xl:mb-[100px]">
         <div className="rounded-[24px] border border-[#f0f0f0] bg-[#fafafa] p-[24px] md:rounded-[28px] md:p-[32px] lg:p-[40px] xl:p-[48px]">
           <div className="mb-[20px] flex items-center gap-[12px] md:mb-[24px] lg:mb-[28px]"><div className="flex h-[36px] w-[36px] items-center justify-center rounded-[12px] bg-[#ef6f2e]/10 md:h-[40px] md:w-[40px]"><Shield className="h-[18px] w-[18px] text-[#ef6f2e] md:h-[20px] md:w-[20px]" /></div><h3 className="text-[18px] font-semibold leading-[1.2] text-[#131314] md:text-[22px] lg:text-[24px]">{data.title}</h3></div>
-          <div className="flex flex-col gap-[22px] md:gap-[26px] [&_h4]:mb-[10px] [&_h4]:text-[16px] [&_h4]:font-semibold [&_h4]:leading-[1.3] [&_h4]:text-[#131314] md:[&_h4]:text-[18px] lg:[&_h4]:text-[20px] [&_p]:text-[14px] [&_p]:leading-[1.6] [&_p]:text-[rgba(19,19,20,0.58)] md:[&_p]:text-[15px] lg:[&_p]:text-[16px] [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-[12px] md:[&_ul]:gap-[14px] lg:[&_ul]:gap-[16px] [&_li]:text-[14px] [&_li]:leading-[1.5] [&_li]:text-[rgba(19,19,20,0.55)] md:[&_li]:text-[15px] lg:[&_li]:text-[16px] [&_strong]:font-semibold [&_strong]:text-[#131314]" dangerouslySetInnerHTML={{ __html: data.html || "" }} />
+          <div className="rich-html-content flex flex-col gap-[22px] md:gap-[26px] [&_h4]:mb-[10px] [&_h4]:text-[16px] [&_h4]:font-semibold [&_h4]:leading-[1.3] [&_h4]:text-[#131314] md:[&_h4]:text-[18px] lg:[&_h4]:text-[20px] [&_p]:text-[14px] [&_p]:leading-[1.6] [&_p]:text-[rgba(19,19,20,0.58)] md:[&_p]:text-[15px] lg:[&_p]:text-[16px] [&_ul]:flex [&_ul]:flex-col [&_ul]:gap-[12px] md:[&_ul]:gap-[14px] lg:[&_ul]:gap-[16px] [&_li]:text-[14px] [&_li]:leading-[1.5] [&_li]:text-[rgba(19,19,20,0.55)] md:[&_li]:text-[15px] lg:[&_li]:text-[16px] [&_strong]:font-semibold [&_strong]:text-[#131314]" dangerouslySetInnerHTML={{ __html: data.html || "" }} />
         </div>
       </section>
     );
@@ -566,7 +566,7 @@ function RichTextBlock({ block }: { block: StaticPageBlock }) {
           <div className={`flex h-[40px] w-[40px] flex-shrink-0 items-center justify-center rounded-full md:h-[48px] md:w-[48px] ${contact ? "bg-white" : variant === "legalFilled" ? "bg-[#ef6f2e]" : "border-2 border-[#ef6f2e] bg-white"}`}><span className={`text-[20px] font-medium md:text-[24px] ${contact || variant === "legalOutlined" ? "text-[#ef6f2e]" : "text-white"}`}>{data.number}</span></div>
           <h2 className={`pt-[6px] text-[22px] font-medium leading-[1.2] md:pt-[8px] md:text-[26px] lg:text-[30px] ${contact ? "text-white" : "text-[#131314]"}`}>{data.title}</h2>
         </div>
-        <div className={`${contact ? "text-white/90 [&_a]:text-white" : "text-[rgba(19,19,20,0.7)]"} text-[16px] leading-[1.7] md:text-[17px] lg:text-[18px] [&_p+p]:mt-[12px] [&_ul]:mt-[14px] [&_ul]:space-y-[10px] [&_strong]:font-medium ${contact ? "[&_strong]:text-white" : "[&_strong]:text-[#131314]"} [&_a]:font-medium [&_a]:underline`} dangerouslySetInnerHTML={{ __html: data.html || "" }} />
+        <div className={`rich-html-content ${contact ? "text-white/90 [&_a]:text-white" : "text-[rgba(19,19,20,0.7)]"} text-[16px] leading-[1.7] md:text-[17px] lg:text-[18px] [&_p+p]:mt-[12px] [&_ul]:mt-[14px] [&_ul]:space-y-[10px] [&_strong]:font-medium ${contact ? "[&_strong]:text-white" : "[&_strong]:text-[#131314]"} [&_a]:font-medium [&_a]:underline`} dangerouslySetInnerHTML={{ __html: data.html || "" }} />
       </section>
     );
   }
@@ -575,7 +575,7 @@ function RichTextBlock({ block }: { block: StaticPageBlock }) {
     return (
       <section className="mb-[14px] rounded-[14px] bg-[#f5f5f7] p-[20px] md:mb-[18px] md:p-[26px]">
         <div className="mb-[12px] flex items-center gap-[12px]"><span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[10px] bg-[#ef6f2e] text-[14px] font-medium text-white">{data.number}</span><h2 className="text-[20px] font-medium leading-[1.2] text-[#131314] md:text-[24px]">{data.title}</h2></div>
-        <div className="text-[15px] leading-[1.6] text-[rgba(19,19,20,0.64)] md:text-[16px]" dangerouslySetInnerHTML={{ __html: data.html || "" }} />
+        <div className="rich-html-content text-[15px] leading-[1.6] text-[rgba(19,19,20,0.64)] md:text-[16px]" dangerouslySetInnerHTML={{ __html: data.html || "" }} />
       </section>
     );
   }
@@ -583,7 +583,7 @@ function RichTextBlock({ block }: { block: StaticPageBlock }) {
   return (
     <section className="mb-[50px] md:mb-[60px] lg:mb-[70px] xl:mb-[80px]">
       {data.title && <h2 className={sectionTitle}>{data.title}</h2>}
-      <div className={`${bodyText} prose max-w-none`} dangerouslySetInnerHTML={{ __html: data.html || "" }} />
+      <div className={`${bodyText} prose rich-html-content max-w-none`} dangerouslySetInnerHTML={{ __html: data.html || "" }} />
     </section>
   );
 }
@@ -639,7 +639,7 @@ function renderBlock(block: StaticPageBlock, index: number) {
         </section>
       );
     case "info":
-      return <section key={index} className={`mb-[50px] rounded-[22px] p-6 md:mb-[60px] md:p-8 lg:mb-[70px] xl:mb-[80px] ${data.tone === "orange" ? "bg-[#fff1e9]" : "bg-[#f5f5f7]"}`}>{data.title && <h2 className="mb-3 text-xl font-medium text-[#131314]">{data.title}</h2>}<div className={bodyText} dangerouslySetInnerHTML={{ __html: data.html || "" }} /></section>;
+      return <section key={index} className={`mb-[50px] rounded-[22px] p-6 md:mb-[60px] md:p-8 lg:mb-[70px] xl:mb-[80px] ${data.tone === "orange" ? "bg-[#fff1e9]" : "bg-[#f5f5f7]"}`}>{data.title && <h2 className="mb-3 text-xl font-medium text-[#131314]">{data.title}</h2>}<div className={`${bodyText} rich-html-content`} dangerouslySetInnerHTML={{ __html: data.html || "" }} /></section>;
     case "cta":
       return <CtaBlock key={index} block={block} />;
     case "map":
